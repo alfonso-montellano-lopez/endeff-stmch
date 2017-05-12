@@ -39,6 +39,12 @@ IPAddress ip(192, 168, 137, 160);
 IPAddress server(192,168, 137, 20);//IP address of the server you're connecting to.
 EthernetClient client;
 int port = 8888;
+//Digital Flow Switch (DFS) variables:
+int blackWire_DFS1 = 0, blackWire_DFS2 = 0, blackWire_DFS3 = 0;//Analogue input 0
+float blackValue_DFS1 = 0.0, blackValue_DFS2 = 0.0, blackValue_DFS3 = 0.0;
+float DFS_on_threshold = 3.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
+float max_blackWire_Volt = 4.0;
+int pin_relay_DFS1, pin_relay_DFS2, pin_relay_DFS3;
 //#############################FUNCTIONS#############################
 void setup()
 { 
@@ -96,6 +102,11 @@ void setup()
   isort(newArrayForSortingRIGHT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
   modERIGHTprev = modERIGHT;
+
+  pinMode(pin_relay_DFS1, OUTPUT); 
+  pinMode(pin_relay_DFS2, OUTPUT); 
+  pinMode(pin_relay_DFS3, OUTPUT);
+  
   delay(1000);
 }
 
@@ -291,12 +302,14 @@ bool reorient(){
 }
 
 bool activate(){
-  
-  bool ok = true;
+
+  turn_DFS_on(pin_relay_DFS1);
+  turn_DFS_on(pin_relay_DFS2);
+  turn_DFS_on(pin_relay_DFS3);
 
   delay(2000);
- 
-  if (ok == true)
+
+  if ((check_attachment(blackWire_DFS1, blackValue_DFS1) == true) && (check_attachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_attachment(blackWire_DFS3, blackValue_DFS3) == true))
   {
     return true;  
   }
@@ -306,11 +319,13 @@ bool activate(){
 
 bool deactivate(){
   
-  bool ok = true;
+  turn_DFS_off(pin_relay_DFS1);
+  turn_DFS_off(pin_relay_DFS2);
+  turn_DFS_off(pin_relay_DFS3);
 
   delay(2000);
  
-  if (ok == true)
+  if ((check_detachment(blackWire_DFS1, blackValue_DFS1) == true) && (check_detachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_detachment(blackWire_DFS3, blackValue_DFS3) == true))
   {
     return true;  
   }
@@ -400,5 +415,42 @@ void printArray(int *a, int n)
   }
 
   Serial.println();
+}
+
+//DFS:
+
+void turn_DFS_on(int relay_DFS){
+    digitalWrite(relay_DFS,HIGH);
+    Serial.println("EE: DFS on.");
+}
+void turn_DFS_off(int relay_DFS){
+    digitalWrite(relay_DFS,LOW);
+    Serial.println("EE: DFS off.");
+}
+
+bool check_attachment(int blackWire_DFS, float blackValue_DFS){
+  blackValue_DFS = analogRead(blackWire_DFS);
+  blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
+  if (blackValue_DFS >= DFS_on_threshold){
+    Serial.println("EE: Suction cups on DFS ON.");
+    return true;
+  }
+  else{
+    Serial.println("EE: Suction cups on DFS are not ON yet. Try again.");
+    return false;
+  }
+}
+
+bool check_detachment(int blackWire_DFS, float blackValue_DFS){
+  blackValue_DFS = analogRead(blackWire_DFS);
+  blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
+  if (blackValue_DFS <= DFS_off_threshold){
+    Serial.println("EE: Suction cups on DFS are OFF.");
+    return true;
+  }
+  else{
+    Serial.println("EE: Suction cups on DFS are not OFF yet. Try again.");
+    return false;
+  }
 }
 
