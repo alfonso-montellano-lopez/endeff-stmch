@@ -41,10 +41,10 @@ EthernetClient client;
 int port = 8888;
 //Digital Flow Switch (DFS) variables:
 int blackWire_DFS1 = 0, blackWire_DFS2 = 0, blackWire_DFS3 = 0;//Analogue input 0
-float blackValue_DFS1 = 0.0, blackValue_DFS2 = 0.0, blackValue_DFS3 = 0.0;
+int blackValue_DFS1 = 0, blackValue_DFS2 = 0, blackValue_DFS3 = 0;
 float DFS_on_threshold = 3.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
 float max_blackWire_Volt = 4.0;
-int pin_relay_DFS1, pin_relay_DFS2, pin_relay_DFS3;
+int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
 //#############################FUNCTIONS#############################
 void setup()
 { 
@@ -114,7 +114,7 @@ void loop()
 {
   bool st_status = false;
   delay(2000);
-  reconnect_GS();// if the server's disconnected, reconnect the client.
+  //reconnect_GS();// if the server's disconnected, reconnect the client.
   GScommand = 'c';//readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
   
   switch (GScommand){
@@ -431,6 +431,9 @@ void turn_DFS_off(int relay_DFS){
 bool check_attachment(int blackWire_DFS, float blackValue_DFS){
   blackValue_DFS = analogRead(blackWire_DFS);
   blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
+  Serial.print(DFS_on_threshold);
+  Serial.print(",");
+  Serial.println(blackValue_DFS);
   if (blackValue_DFS >= DFS_on_threshold){
     Serial.println("EE: Suction cups on DFS ON.");
     return true;
@@ -444,6 +447,9 @@ bool check_attachment(int blackWire_DFS, float blackValue_DFS){
 bool check_detachment(int blackWire_DFS, float blackValue_DFS){
   blackValue_DFS = analogRead(blackWire_DFS);
   blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
+  Serial.print(DFS_off_threshold);
+  Serial.print(",");
+  Serial.println(blackValue_DFS);
   if (blackValue_DFS <= DFS_off_threshold){
     Serial.println("EE: Suction cups on DFS are OFF.");
     return true;
