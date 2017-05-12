@@ -115,7 +115,7 @@ void loop()
   bool st_status = false;
   delay(2000);
   reconnect_GS();// if the server's disconnected, reconnect the client.
-  GScommand = readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
+  GScommand = 'c';//readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
   
   switch (GScommand){
     case 's':
@@ -136,11 +136,11 @@ void loop()
       st_status = activate();
       if (st_status == true){
         Serial.println("EE: Suction cups activated.");
-        send_char_srv(GScommand);  
+        //send_char_srv(GScommand);  
       }
       else{
         GScommand = 'e';
-        send_char_srv(GScommand);    
+        //send_char_srv(GScommand);    
       }
     break;
 
@@ -303,13 +303,13 @@ bool reorient(){
 
 bool activate(){
 
-  turn_DFS_on(pin_relay_DFS1);
-  turn_DFS_on(pin_relay_DFS2);
-  turn_DFS_on(pin_relay_DFS3);
+  //turn_DFS_on(pin_relay_DFS1);//relay not yet connnected
+  //turn_DFS_on(pin_relay_DFS2);
+  //turn_DFS_on(pin_relay_DFS3);
 
   delay(2000);
 
-  if ((check_attachment(blackWire_DFS1, blackValue_DFS1) == true) && (check_attachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_attachment(blackWire_DFS3, blackValue_DFS3) == true))
+  if ((check_attachment(blackWire_DFS1, blackValue_DFS1) == true))// && (check_attachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_attachment(blackWire_DFS3, blackValue_DFS3) == true))
   {
     return true;  
   }
@@ -320,12 +320,12 @@ bool activate(){
 bool deactivate(){
   
   turn_DFS_off(pin_relay_DFS1);
-  turn_DFS_off(pin_relay_DFS2);
-  turn_DFS_off(pin_relay_DFS3);
+  //turn_DFS_off(pin_relay_DFS2);
+  //turn_DFS_off(pin_relay_DFS3);
 
   delay(2000);
  
-  if ((check_detachment(blackWire_DFS1, blackValue_DFS1) == true) && (check_detachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_detachment(blackWire_DFS3, blackValue_DFS3) == true))
+  if ((check_detachment(blackWire_DFS1, blackValue_DFS1) == true))// && (check_detachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_detachment(blackWire_DFS3, blackValue_DFS3) == true))
   {
     return true;  
   }
