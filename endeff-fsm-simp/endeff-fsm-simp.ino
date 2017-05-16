@@ -8,6 +8,9 @@
 #include <Math.h>
 //#######################VARIABLES#########################
 //Re-orientation variables:
+
+char inbyte;
+
 Servo tiltservo, panservo;
 const int tilt = 6, pan = 5;
 float FIXED_PAN_POS = 95.0, MAX_PAN = 100.0, MIN_PAN = 90.0;
@@ -16,7 +19,7 @@ float theta_pan = 0, theta_tilt = 0, prev_theta_pan = 0, prev_theta_tilt = 0;
 const float D_L2R = 418.0, D_T2B = 317.0;//mm//16.0;//cm //mm//9.0;//cm
 long dLEFT, dRIGHT, dLEFTprev, dRIGHTprev, dTOP, dBOTTOM, dTOPprev, dBOTTOMprev, dTOL = 20.0;//dTOL 60.0mm
 long abs_d_diff_PAN, abs_d_diff_TILT;
-const int pwPinTOP = 10, pwPinBOTTOM = 11, pwPinLEFT = 3, pwPinRIGHT = 9; //Set the pin to receive the signal.
+const int pwPinTOP = 4, pwPinBOTTOM = 11, pwPinLEFT = 3, pwPinRIGHT = 9;//pin 10 crushes ethernet communication!!! //Set the pin to receive the signal.
 const int arraysize = 31;//15//201;//31;// more samples increase reaction time
 int rangevalueLEFT[arraysize], rangevalueRIGHT[arraysize], rangevalueTOP[arraysize], rangevalueBOTTOM[arraysize];
 int newArrayFILOTOP[arraysize],newArrayFILOBOTTOM[arraysize], newArrayFILOLEFT[arraysize], newArrayFILORIGHT[arraysize];
@@ -48,10 +51,11 @@ float max_blackWire_Volt = 4.0;
 int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
 //#############################FUNCTIONS#############################
 void setup()
-{ 
+{
+
   //Serial:
   Serial.begin(9600);
-  //Ethernet:
+    //Ethernet:
   Ethernet.begin(mac, ip);
   delay(1000);// give the Ethernet shield a second to initialize:
   Serial.println("EE: Ethernet connecting...");
@@ -62,8 +66,8 @@ void setup()
     // if you didn't get a connection to the server:
     Serial.println("EE: Ethernet connection failed.");
   }
-  Serial.print("EE: Set-up completed.");//client.write("EE ready.");
-  //Re-orientation:
+  
+//  //Re-orientation:
   tiltservo.attach(tilt);
   panservo.attach(pan);
   panservo.write(pan_pos);
@@ -104,19 +108,24 @@ void setup()
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
   modERIGHTprev = modERIGHT;
 
-  pinMode(pin_relay_DFS1, OUTPUT); 
-  pinMode(pin_relay_DFS2, OUTPUT); 
-  pinMode(pin_relay_DFS3, OUTPUT);
+//  pinMode(pin_relay_DFS1, OUTPUT); //careful when assigning these with the Ethernet shield!
+//  pinMode(pin_relay_DFS2, OUTPUT); 
+//  pinMode(pin_relay_DFS3, OUTPUT);
   
   delay(1000);
+  Serial.print("EE: Set-up completed.");
+  //client.write("EE ready.");
 }
 
 void loop()
-{
+{ 
   bool st_status = false;
+  reconnect_GS();// if the server's disconnected, reconnect the client.
+  GScommand = readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
   delay(2000);
-  //reconnect_GS();// if the server's disconnected, reconnect the client.
-  GScommand = 's';//readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
+  Serial.print("EE: GScommand = ");
+  Serial.println(GScommand);
+  client.write('x');// tell server there is connection, otherwise spends a long time waiting for command.
   
   switch (GScommand){
     case 's':
@@ -166,17 +175,16 @@ void loop()
       Serial.println("EE: Waiting...");
     break;
   }
-
 }
 
 //Ethernet functions:
 
 char readNprint_GSEE_mssgs(){
-  char inbyte, outbyte;
+ // char inbyte = 'g', outbyte;
   if (client.available()) {
     inbyte = client.read();
-    //Serial.print("GS: ");
-    //Serial.println(inbyte);
+    Serial.print("GS: ");
+    Serial.println(inbyte);
   }
   return inbyte;
 }
@@ -189,10 +197,9 @@ void send_char_srv(char m)
 
 void reconnect_GS(){
   if (!client.connected()) {
-    Serial.println();
     Serial.println("EE: GS disconnected....");
     client.stop();
-    delay(1000);
+    delay(2000);
     if (client.connect(server, port)) {
       Serial.println("EE: GS connected.");
     }
