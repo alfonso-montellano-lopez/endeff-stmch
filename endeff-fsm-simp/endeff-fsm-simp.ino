@@ -29,7 +29,8 @@ boolean modETOP_has_changed = false, modEBOTTOM_has_changed = false;
 long newSampleTOP, newSampleBOTTOM, newSampleLEFT, newSampleRIGHT;
 long pulseLEFT, pulseRIGHT, pulseTOP, pulseBOTTOM;
 float tilt_pos = FIXED_TILT_POS, pan_pos = FIXED_PAN_POS;
-float PT_MIN = 0.2, PT_MIN_PAN = 0.05;
+//float PT_MIN = 0.2, PT_MIN_PAN = 0.05;
+float PT_MIN = 5.0, PT_MIN_PAN = 5.0;
 float t0=0.0,tn=0.0;
 // State machine variable:
 char GScommand = 'b';
@@ -216,14 +217,14 @@ bool reorient(){
   modELEFT = mode(newArrayForSortingLEFT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
   
-  //Serial.print(",");
+  Serial.println("EE: L,R,T,B distance:");
   Serial.print(modELEFT);
   Serial.print(",");
-  Serial.println(modERIGHT);
-
-//  Serial.print(modETOP);
-//  Serial.print(",");
-//  Serial.println(modEBOTTOM);
+  Serial.print(modERIGHT);
+  Serial.print(",");
+  Serial.print(modETOP);
+  Serial.print(",");
+  Serial.println(modEBOTTOM);
     
   newSampleTOP = pulseIn(pwPinTOP, HIGH) / 5.82;
   newSampleBOTTOM = pulseIn(pwPinBOTTOM, HIGH) / 5.82;
