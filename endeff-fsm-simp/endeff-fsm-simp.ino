@@ -9,27 +9,27 @@
 //#######################VARIABLES#########################
 //Re-orientation variables:
 Servo tiltservo, panservo;
-const int tilt = 3, pan = 4;
+const int tilt = 6, pan = 5;
 float FIXED_PAN_POS = 95.0, MAX_PAN = 100.0, MIN_PAN = 90.0;
-float FIXED_TILT_POS = 125.0, MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0
+float FIXED_TILT_POS = 135.0, MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0
 float theta_pan = 0, theta_tilt = 0, prev_theta_pan = 0, prev_theta_tilt = 0;
 const float D_L2R = 418.0, D_T2B = 317.0;//mm//16.0;//cm //mm//9.0;//cm
 long dLEFT, dRIGHT, dLEFTprev, dRIGHTprev, dTOP, dBOTTOM, dTOPprev, dBOTTOMprev, dTOL = 20.0;//dTOL 60.0mm
 long abs_d_diff_PAN, abs_d_diff_TILT;
-const int pwPinTOP = 11, pwPinBOTTOM = 8, pwPinLEFT = 9, pwPinRIGHT = 10; //Set the pin to receive the signal.
-const int arraysize = 15;//15//201;//31;// more samples increase reaction time
+const int pwPinTOP = 10, pwPinBOTTOM = 11, pwPinLEFT = 3, pwPinRIGHT = 9; //Set the pin to receive the signal.
+const int arraysize = 31;//15//201;//31;// more samples increase reaction time
 int rangevalueLEFT[arraysize], rangevalueRIGHT[arraysize], rangevalueTOP[arraysize], rangevalueBOTTOM[arraysize];
 int newArrayFILOTOP[arraysize],newArrayFILOBOTTOM[arraysize], newArrayFILOLEFT[arraysize], newArrayFILORIGHT[arraysize];
 int newArrayForSortingTOP[arraysize], newArrayForSortingBOTTOM[arraysize], newArrayForSortingLEFT[arraysize], newArrayForSortingRIGHT[arraysize];
 int modETOP,  modETOPprev, modEBOTTOM, modEBOTTOMprev, modELEFT,  modELEFTprev, modERIGHT, modERIGHTprev;
-int modETOL = 10.0;//10.0//TILT
+int modETOL = 20.0;//10.0//TILT
 int modETOL_FACTOR= 1000.0;
-int modETOL_PAN = 25.0;//10.0
+int modETOL_PAN = 20.0;//10.0
 boolean modETOP_has_changed = false, modEBOTTOM_has_changed = false;
 long newSampleTOP, newSampleBOTTOM, newSampleLEFT, newSampleRIGHT;
 long pulseLEFT, pulseRIGHT, pulseTOP, pulseBOTTOM;
 float tilt_pos = FIXED_TILT_POS, pan_pos = FIXED_PAN_POS;
-float PT_MIN = 0.5, PT_MIN_PAN = 0.15;
+float PT_MIN = 0.2, PT_MIN_PAN = 0.05;
 float t0=0.0,tn=0.0;
 // State machine variable:
 char GScommand = 'b';
@@ -42,7 +42,7 @@ int port = 8888;
 //Digital Flow Switch (DFS) variables:
 int blackWire_DFS1 = 0, blackWire_DFS2 = 0, blackWire_DFS3 = 0;//Analogue input 0
 int blackValue_DFS1 = 0, blackValue_DFS2 = 0, blackValue_DFS3 = 0;
-float DFS_on_threshold = 3.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
+float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
 float max_blackWire_Volt = 4.0;
 int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
 //#############################FUNCTIONS#############################
@@ -115,7 +115,7 @@ void loop()
   bool st_status = false;
   delay(2000);
   //reconnect_GS();// if the server's disconnected, reconnect the client.
-  GScommand = 'c';//readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
+  GScommand = 's';//readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
   
   switch (GScommand){
     case 's':
@@ -216,10 +216,14 @@ bool reorient(){
   modELEFT = mode(newArrayForSortingLEFT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
   
-  Serial.print(",");
+  //Serial.print(",");
   Serial.print(modELEFT);
   Serial.print(",");
   Serial.println(modERIGHT);
+
+//  Serial.print(modETOP);
+//  Serial.print(",");
+//  Serial.println(modEBOTTOM);
     
   newSampleTOP = pulseIn(pwPinTOP, HIGH) / 5.82;
   newSampleBOTTOM = pulseIn(pwPinBOTTOM, HIGH) / 5.82;
@@ -249,30 +253,30 @@ bool reorient(){
     if(modETOP > modEBOTTOM)// && tilt_pos <= MAX_TILT)
     {
       tilt_pos = tilt_pos + PT_MIN;
-      Serial.println("in plus");
+      //Serial.println("in plus");
     }
     else //(modETOP < modEBOTTOM && tilt_pos >= MIN_TILT)
     {
       tilt_pos = tilt_pos - PT_MIN;
-      Serial.println("in minus");
+      //Serial.println("in minus");
     }
     if (tilt_pos >= MAX_TILT)
     {
       tilt_pos = MAX_TILT;
-      Serial.println("over upper limit");
+      //Serial.println("over upper limit");
     }
     if (tilt_pos <= MIN_TILT)
     {
       tilt_pos = MIN_TILT;
-      Serial.println("over lower limit");
+      //Serial.println("over lower limit");
     }
-    Serial.println("moving");
+    //Serial.println("moving");
   }
 //pan:
   //if ( (-modETOL_PAN < (modELEFT - modERIGHT) ) && ( (modELEFT - modERIGHT) < modETOL_PAN)  )
   abs_d_diff_PAN = abs( modELEFT - modERIGHT );
   //Serial.println(abs_d_diff_PAN);
-  if ( ( abs_d_diff_PAN < modETOL_PAN ) || ( abs_d_diff_PAN > ( 2 * modETOL_PAN ) ) )
+  if ( ( abs_d_diff_PAN < modETOL_PAN ) || ( abs_d_diff_PAN > ( modETOL_FACTOR * modETOL_PAN ) ) )
   {
    pan_pos = pan_pos;
    pan_ok = true;
@@ -290,8 +294,8 @@ bool reorient(){
   
   tiltservo.write(tilt_pos);//set pan position
   //tiltservo.write(FIXED_TILT_POS);//WHILE TESTING PAN ONLY
-  //panservo.write(pan_pos);//set pan position
-  panservo.write(FIXED_PAN_POS);
+  panservo.write(pan_pos);//set pan position
+  //panservo.write(FIXED_PAN_POS);
  
   if (tilt_ok == true && pan_ok == true)
   {
