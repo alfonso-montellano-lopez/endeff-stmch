@@ -30,7 +30,7 @@ long newSampleTOP, newSampleBOTTOM, newSampleLEFT, newSampleRIGHT;
 long pulseLEFT, pulseRIGHT, pulseTOP, pulseBOTTOM;
 float tilt_pos = FIXED_TILT_POS, pan_pos = FIXED_PAN_POS;
 //float PT_MIN = 0.2, PT_MIN_PAN = 0.05;
-float PT_MIN = 5.0, PT_MIN_PAN = 5.0;
+float PT_MIN = 0.2, PT_MIN_PAN = 0.5;
 float t0=0.0,tn=0.0;
 // State machine variable:
 char GScommand = 'a', GScommand_old = 'a', newGScommand = 'a';
@@ -119,16 +119,8 @@ void loop()
 { 
   bool st_status = false;
   reconnect_GS();// if the server's disconnected, reconnect the client.
-  
-  //GScommand = readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
-  
-//  Serial.print("EE: GScommand = ");
-//  Serial.println(GScommand);
-  
   delay(1000);
   client.write('x');// tell server there is connection, otherwise it spends a long time waiting for command.
-  //if(((GScommand == 's') || (GScommand == 'c') || (GScommand == 'i') || (GScommand == 'e'))&&(GScommand != GScommand_old)){
-    //GScommand_old = GS_command;
     switch (GScommand){
       case 's':
         Serial.println("EE: Re-orienting end effector.");
@@ -137,15 +129,10 @@ void loop()
         if ((newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
           GScommand = newGScommand;
         }
-        
         if (st_status == true){
           Serial.println("EE: End effector re-oriented.");
           send_char_srv(GScommand);  
         }
-//        else{
-//          GScommand = 'e';
-//          send_char_srv(GScommand);
-//        }
       break;
   
       case 'c':
@@ -159,10 +146,6 @@ void loop()
           Serial.println("EE: Suction cups activated.");
           //send_char_srv(GScommand);  
         }
-//        else{
-//          GScommand = 'e';
-//          //send_char_srv(GScommand);    
-//        }
       break;
   
       case 'i':
@@ -176,10 +159,6 @@ void loop()
           Serial.println("EE: Suction cups deactivated.");
           send_char_srv(GScommand);  
         }
-//        else{
-//          GScommand = 'e';
-//          send_char_srv(GScommand);
-//        }
       break;
   
       case 'a':
@@ -188,7 +167,6 @@ void loop()
             GScommand = newGScommand;
           }
         Serial.println("EE: Idle state.");
-        //Serial.println("EE: Something went wrong, task couldn't be completed.");
       break;
       
       default:
@@ -199,11 +177,6 @@ void loop()
         Serial.println("EE: Waiting in state machine...");
       break;
     }
-  //}
-  //else{
-    //Serial.println("EE: Waiting for valid command.");
-    
-  //}
 }
 
 //Ethernet functions:
