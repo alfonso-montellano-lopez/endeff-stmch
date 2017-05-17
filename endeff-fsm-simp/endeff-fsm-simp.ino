@@ -8,9 +8,6 @@
 #include <Math.h>
 //#######################VARIABLES#########################
 //Re-orientation variables:
-
-char inbyte;
-
 Servo tiltservo, panservo;
 const int tilt = 6, pan = 5;
 float FIXED_PAN_POS = 95.0, MAX_PAN = 100.0, MIN_PAN = 90.0;
@@ -36,7 +33,7 @@ float tilt_pos = FIXED_TILT_POS, pan_pos = FIXED_PAN_POS;
 float PT_MIN = 5.0, PT_MIN_PAN = 5.0;
 float t0=0.0,tn=0.0;
 // State machine variable:
-char GScommand = 'b';
+char GScommand = 'a', GScommand_old = 'a', newGScommand = 'a';
 //Ethernet variables:
 byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xEC, 0x19};
 IPAddress ip(192, 168, 137, 160);
@@ -113,6 +110,7 @@ void setup()
 //  pinMode(pin_relay_DFS3, OUTPUT);
   
   delay(1000);
+  //GScommand = 'a';
   Serial.print("EE: Set-up completed.");
   //client.write("EE ready.");
 }
@@ -121,66 +119,97 @@ void loop()
 { 
   bool st_status = false;
   reconnect_GS();// if the server's disconnected, reconnect the client.
-  GScommand = readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
-  delay(2000);
-  Serial.print("EE: GScommand = ");
-  Serial.println(GScommand);
-  client.write('x');// tell server there is connection, otherwise spends a long time waiting for command.
   
-  switch (GScommand){
-    case 's':
-      Serial.println("EE: Re-orienting end effector.");
-      st_status = reorient();//the actual task
-      if (st_status == true){
-        Serial.println("EE: End effector re-oriented.");
-        send_char_srv(GScommand);  
-      }
-      else{
-        GScommand = 'e';
-        send_char_srv(GScommand);
-      }
-    break;
-
-    case 'c':
-      Serial.println("EE: Activating suction cups.");
-      st_status = activate();
-      if (st_status == true){
-        Serial.println("EE: Suction cups activated.");
-        //send_char_srv(GScommand);  
-      }
-      else{
-        GScommand = 'e';
-        //send_char_srv(GScommand);    
-      }
-    break;
-
-    case 'i':
-      Serial.println("EE: De-activating suction cups.");
-      st_status = deactivate();
-      if (st_status == true){
-        Serial.println("EE: Suction cups deactivated.");
-        send_char_srv(GScommand);  
-      }
-      else{
-        GScommand = 'e';
-        send_char_srv(GScommand);
-      }
-    break;
-
-    case 'e':
-      Serial.println("EE: Something went wrong, task couldn't be completed.");
-    break;
+  //GScommand = readNprint_GSEE_mssgs();//if there are incoming bytes available from the server, read them and print them.
+  
+//  Serial.print("EE: GScommand = ");
+//  Serial.println(GScommand);
+  
+  delay(1000);
+  client.write('x');// tell server there is connection, otherwise it spends a long time waiting for command.
+  //if(((GScommand == 's') || (GScommand == 'c') || (GScommand == 'i') || (GScommand == 'e'))&&(GScommand != GScommand_old)){
+    //GScommand_old = GS_command;
+    switch (GScommand){
+      case 's':
+        Serial.println("EE: Re-orienting end effector.");
+        st_status = reorient();//the actual task
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        
+        if (st_status == true){
+          Serial.println("EE: End effector re-oriented.");
+          send_char_srv(GScommand);  
+        }
+//        else{
+//          GScommand = 'e';
+//          send_char_srv(GScommand);
+//        }
+      break;
+  
+      case 'c':
+        Serial.println("EE: Activating suction cups.");
+        st_status = activate();
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 's') || (newGScommand == 'i') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        if (st_status == true){
+          Serial.println("EE: Suction cups activated.");
+          //send_char_srv(GScommand);  
+        }
+//        else{
+//          GScommand = 'e';
+//          //send_char_srv(GScommand);    
+//        }
+      break;
+  
+      case 'i':
+        Serial.println("EE: De-activating suction cups.");
+        st_status = deactivate();
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        if (st_status == true){
+          Serial.println("EE: Suction cups deactivated.");
+          send_char_srv(GScommand);  
+        }
+//        else{
+//          GScommand = 'e';
+//          send_char_srv(GScommand);
+//        }
+      break;
+  
+      case 'a':
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i')){
+            GScommand = newGScommand;
+          }
+        Serial.println("EE: Idle state.");
+        //Serial.println("EE: Something went wrong, task couldn't be completed.");
+      break;
+      
+      default:
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        Serial.println("EE: Waiting in state machine...");
+      break;
+    }
+  //}
+  //else{
+    //Serial.println("EE: Waiting for valid command.");
     
-    default:
-      Serial.println("EE: Waiting...");
-    break;
-  }
+  //}
 }
 
 //Ethernet functions:
 
 char readNprint_GSEE_mssgs(){
- // char inbyte = 'g', outbyte;
+  char inbyte, outbyte;
   if (client.available()) {
     inbyte = client.read();
     Serial.print("GS: ");
