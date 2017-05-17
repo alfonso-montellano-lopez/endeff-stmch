@@ -45,7 +45,9 @@ int blackWire_DFS1 = 0, blackWire_DFS2 = 0, blackWire_DFS3 = 0;//Analogue input 
 int blackValue_DFS1 = 0, blackValue_DFS2 = 0, blackValue_DFS3 = 0;
 float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
 float max_blackWire_Volt = 4.0;
-int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
+//int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
+//Relay:
+#define pin_relay_DFS1 8
 //#############################FUNCTIONS#############################
 void setup()
 {
@@ -104,15 +106,17 @@ void setup()
   isort(newArrayForSortingRIGHT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
   modERIGHTprev = modERIGHT;
-
-//  pinMode(pin_relay_DFS1, OUTPUT); //careful when assigning these with the Ethernet shield!
+  
+  //Relay:
+  pinMode(pin_relay_DFS1, OUTPUT); //careful when assigning these with the Ethernet shield!
 //  pinMode(pin_relay_DFS2, OUTPUT); 
 //  pinMode(pin_relay_DFS3, OUTPUT);
+  digitalWrite(pin_relay_DFS1,HIGH);//on NO
   
-  delay(1000);
   //GScommand = 'a';
   Serial.print("EE: Set-up completed.");
   //client.write("EE ready.");
+  delay(1000);
 }
 
 void loop()
@@ -123,6 +127,7 @@ void loop()
   client.write('x');// tell server there is connection, otherwise it spends a long time waiting for command.
     switch (GScommand){
       case 's':
+        digitalWrite(pin_relay_DFS1, LOW);
         Serial.println("EE: Re-orienting end effector.");
         st_status = reorient();//the actual task
         newGScommand = readNprint_GSEE_mssgs();
@@ -166,6 +171,7 @@ void loop()
         if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i')){
             GScommand = newGScommand;
           }
+        digitalWrite(pin_relay_DFS1, HIGH);
         Serial.println("EE: Idle state.");
       break;
       
