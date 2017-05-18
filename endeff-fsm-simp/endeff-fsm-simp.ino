@@ -49,6 +49,9 @@ float max_blackWire_Volt = 4.0;
 //Relays: // these pins don't interfere with Ethernet Shield (pin 10 does!!)
 #define pin_relay_PNT 8
 #define pin_relay_DFS1 2
+//Micro-switches:
+int uswitch1 = 1; //Analogue input 1
+float uswitchValue;
 //#############################FUNCTIONS#############################
 void setup()
 {
@@ -110,8 +113,8 @@ void setup()
   
   //Relay:
   pinMode(pin_relay_PNT, OUTPUT); //careful when assigning these with the Ethernet shield!
-//  pinMode(pin_relay_DFS2, OUTPUT); 
-//  pinMode(pin_relay_DFS3, OUTPUT);
+  //pinMode(pin_relay_DFS2, OUTPUT); 
+  //pinMode(pin_relay_DFS3, OUTPUT);
   pinMode(pin_relay_DFS1,OUTPUT);
   digitalWrite(pin_relay_PNT,HIGH);//on NO
   digitalWrite(pin_relay_DFS1,HIGH);
@@ -155,6 +158,8 @@ void loop()
           Serial.println("EE: Suction cups activated.");
           send_char_srv(GScommand);  
         }
+        check_uswitch_contact(uswitch1);
+        
       break;
   
       case 'i':
@@ -367,6 +372,7 @@ bool deactivate(int blackWire, float blackValue){
 //  Serial.println(blackValue_DFS);
   if (blackValue <= DFS_off_threshold){
     Serial.println("EE: Suction cups on DFS OFF. Wait until there is no pressure in the circuit");
+    Serial.println("EE: Please send 'waiting(a)' command from interface.");
     delay(180000);
     Serial.println("EE: Suction cups DETACHED.");
     return true;
@@ -382,6 +388,20 @@ bool deactivate(int blackWire, float blackValue){
 //  }
 //  else
 //    return false;
+}
+
+bool check_uswitch_contact(int uswitch)
+{
+  uswitchValue = analogRead(uswitch);
+  uswitchValue = map(uswitchValue,0,1023,0.0,max_blackWire_Volt);//max_blackWire_Volt is 4.0, the same as for the uswitches
+  if (uswitchValue >= DFS_on_threshold){//thresholds for DFS are the same for the uswitches
+    Serial.println("EE: Contact double checked with microswitches.");
+    return true;
+  }
+  else{
+    Serial.println("EE: No contact detected on microswitches.");
+    return false;
+  }
 }
 
 //Additional functions:
