@@ -46,8 +46,9 @@ int blackValue_DFS1 = 0, blackValue_DFS2 = 0, blackValue_DFS3 = 0;
 float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
 float max_blackWire_Volt = 4.0;
 //int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
-//Relay:
-#define pin_relay_DFS1 8
+//Relays: // these pins don't interfere with Ethernet Shield (pin 10 does!!)
+#define pin_relay_PNT 8
+#define pin_relay_DFS1 2
 //#############################FUNCTIONS#############################
 void setup()
 {
@@ -108,10 +109,12 @@ void setup()
   modERIGHTprev = modERIGHT;
   
   //Relay:
-  pinMode(pin_relay_DFS1, OUTPUT); //careful when assigning these with the Ethernet shield!
+  pinMode(pin_relay_PNT, OUTPUT); //careful when assigning these with the Ethernet shield!
 //  pinMode(pin_relay_DFS2, OUTPUT); 
 //  pinMode(pin_relay_DFS3, OUTPUT);
-  digitalWrite(pin_relay_DFS1,HIGH);//on NO
+  pinMode(pin_relay_DFS1,OUTPUT);
+  digitalWrite(pin_relay_PNT,HIGH);//on NO
+  digitalWrite(pin_relay_DFS1,HIGH);
   
   //GScommand = 'a';
   Serial.print("EE: Set-up completed.");
@@ -127,7 +130,7 @@ void loop()
   client.write('x');// tell server there is connection, otherwise it spends a long time waiting for command.
     switch (GScommand){
       case 's':
-        digitalWrite(pin_relay_DFS1, LOW);
+        digitalWrite(pin_relay_PNT, LOW);
         Serial.println("EE: Re-orienting end effector.");
         st_status = reorient();//the actual task
         newGScommand = readNprint_GSEE_mssgs();
@@ -142,20 +145,22 @@ void loop()
   
       case 'c':
         Serial.println("EE: Activating suction cups.");
-        st_status = activate();
+        digitalWrite(pin_relay_DFS1,LOW);
+        st_status = activate(blackWire_DFS1, blackValue_DFS1);
         newGScommand = readNprint_GSEE_mssgs();
         if ((newGScommand == 's') || (newGScommand == 'i') || (newGScommand == 'a')){
           GScommand = newGScommand;
         }
         if (st_status == true){
           Serial.println("EE: Suction cups activated.");
-          //send_char_srv(GScommand);  
+          send_char_srv(GScommand);  
         }
       break;
   
       case 'i':
         Serial.println("EE: De-activating suction cups.");
-        st_status = deactivate();
+        digitalWrite(pin_relay_DFS1,HIGH);
+        st_status = deactivate(blackWire_DFS1, blackValue_DFS1);//after 20s voltage drops, pressure disappears completely after 160s
         newGScommand = readNprint_GSEE_mssgs();
         if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'a')){
           GScommand = newGScommand;
@@ -171,7 +176,7 @@ void loop()
         if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i')){
             GScommand = newGScommand;
           }
-        digitalWrite(pin_relay_DFS1, HIGH);
+        digitalWrite(pin_relay_PNT, HIGH);
         Serial.println("EE: Idle state.");
       break;
       
@@ -321,36 +326,62 @@ bool reorient(){
     return false; 
 }
 
-bool activate(){
+bool activate(int blackWire, float blackValue){
 
   //turn_DFS_on(pin_relay_DFS1);//relay not yet connnected
   //turn_DFS_on(pin_relay_DFS2);
   //turn_DFS_on(pin_relay_DFS3);
 
-  delay(2000);
-
-  if ((check_attachment(blackWire_DFS1, blackValue_DFS1) == true))// && (check_attachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_attachment(blackWire_DFS3, blackValue_DFS3) == true))
-  {
-    return true;  
+  blackValue = analogRead(blackWire);
+  blackValue = map(blackValue,0,1023,0.0,max_blackWire_Volt);
+//  Serial.print(DFS_on_threshold);
+//  Serial.print(",");
+//  Serial.println(blackValue_DFS);
+  if (blackValue >= DFS_on_threshold){
+    Serial.println("EE: Suction cups on DFS ON.");
+    return true;
   }
-  else
-    return false; 
+  else{
+    Serial.println("EE: Suction cups on DFS are not ON yet.");
+    return false;
+  }
+
+//  if ((check_attachment(blackWire_DFS1, blackValue_DFS1) == true))// && (check_attachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_attachment(blackWire_DFS3, blackValue_DFS3) == true))
+//  {
+//      
+//  }
+//  else
+     
 }
 
-bool deactivate(){
+bool deactivate(int blackWire, float blackValue){
   
-  turn_DFS_off(pin_relay_DFS1);
+  //turn_DFS_off(pin_relay_DFS1);
   //turn_DFS_off(pin_relay_DFS2);
   //turn_DFS_off(pin_relay_DFS3);
 
-  delay(2000);
- 
-  if ((check_detachment(blackWire_DFS1, blackValue_DFS1) == true))// && (check_detachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_detachment(blackWire_DFS3, blackValue_DFS3) == true))
-  {
-    return true;  
+  blackValue = analogRead(blackWire);
+  blackValue = map(blackValue,0,1023,0.0,max_blackWire_Volt);
+//  Serial.print(DFS_on_threshold);
+//  Serial.print(",");
+//  Serial.println(blackValue_DFS);
+  if (blackValue <= DFS_off_threshold){
+    Serial.println("EE: Suction cups on DFS OFF. Wait until there is no pressure in the circuit");
+    delay(180000);
+    Serial.println("EE: Suction cups DETACHED.");
+    return true;
   }
-  else
+  else{
+    Serial.println("EE: Suction cups on DFS are not OFF yet.");
     return false;
+  }
+ 
+//  if ((check_detachment(blackWire_DFS1, blackValue_DFS1) == true))// && (check_detachment(blackWire_DFS2, blackValue_DFS2) == true) && (check_detachment(blackWire_DFS3, blackValue_DFS3) == true))
+//  {
+//    return true;  
+//  }
+//  else
+//    return false;
 }
 
 //Additional functions:
