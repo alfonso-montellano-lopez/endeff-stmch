@@ -30,7 +30,7 @@ long newSampleTOP, newSampleBOTTOM, newSampleLEFT, newSampleRIGHT;
 long pulseLEFT, pulseRIGHT, pulseTOP, pulseBOTTOM;
 float tilt_pos = FIXED_TILT_POS, pan_pos = FIXED_PAN_POS;
 //float PT_MIN = 0.2, PT_MIN_PAN = 0.05;
-float PT_MIN = 0.2, PT_MIN_PAN = 0.5;
+float PT_MIN = 0.4, PT_MIN_PAN = 1.0;
 float t0=0.0,tn=0.0;
 // State machine variable:
 char GScommand = 'a', GScommand_old = 'a', newGScommand = 'a';
@@ -129,7 +129,7 @@ void loop()
 { 
   bool st_status = false;
   reconnect_GS();// if the server's disconnected, reconnect the client.
-  delay(1000);
+  delay(1500);//1000
   client.write('x');// tell server there is connection, otherwise it spends a long time waiting for command.
     switch (GScommand){
       case 's':
