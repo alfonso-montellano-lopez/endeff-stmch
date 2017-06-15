@@ -52,6 +52,8 @@ float max_blackWire_Volt = 4.0;
 //Micro-switches:
 int uswitch1 = 1; //Analogue input 1
 float uswitchValue;
+//Message to Ground Station:
+char msg2GS;
 //#############################FUNCTIONS#############################
 void setup()
 {
@@ -75,6 +77,8 @@ void setup()
   panservo.attach(pan);
   panservo.write(pan_pos);
   tiltservo.write(tilt_pos);
+  msg2GS = 'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here.
+  client.write(msg2GS);//
   pinMode(pwPinLEFT, INPUT);
   pinMode(pwPinRIGHT, INPUT);
   pinMode(pwPinTOP, INPUT);
@@ -142,7 +146,9 @@ void loop()
         }
         if (st_status == true){
           Serial.println("EE: End effector re-oriented.");
-          send_char_srv(GScommand);  
+          send_char_srv(GScommand);
+          msg2GS = 'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here.
+          client.write(msg2GS);//
         }
       break;
   
