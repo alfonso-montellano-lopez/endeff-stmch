@@ -13,6 +13,7 @@ const int tilt = 3, pan = 5;
 float FIXED_PAN_POS = 95.0; //MAX_PAN = 100.0, MIN_PAN = 90.0;
 //lab test limits:
 float MAX_PAN = 100.0, MIN_PAN = 90.0;
+float MIN_MAN_REOR_ANGLE = 2.5;
 float FIXED_TILT_POS = 135.0; //MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0
 float MAX_TILT = 140.0, MIN_TILT = 135.0;
 float theta_pan = 0, theta_tilt = 0, prev_theta_pan = 0, prev_theta_tilt = 0;
@@ -57,7 +58,7 @@ int uswitch1 = 4; // top //Analogue input 1
 int uswitch2 = 5; // bottom
 float uswitchValue, uswitchValue2;
 //Message to Ground Station:
-char msg2GS;
+char msg2GS[]={char(pan_pos)+char(tilt_pos)};
 //#############################FUNCTIONS#############################
 void setup()
 {
@@ -81,7 +82,7 @@ void setup()
   panservo.attach(pan);
   panservo.write(pan_pos);
   tiltservo.write(tilt_pos);
-  msg2GS = 'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here.
+  //msg2GS = 'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here.
   client.write(msg2GS);//
   pinMode(pwPinLEFT, INPUT);
   pinMode(pwPinRIGHT, INPUT);
@@ -138,33 +139,105 @@ void loop()
   bool st_status = false, st_status0 = false, st_status1 = false, st_status2 = false;
   reconnect_GS();// if the server's disconnected, reconnect the client.
   delay(1500);//1000
-  client.write('x');// tell server there is connection, otherwise it spends a long time waiting for command.
+  //client.write("p095.0t135.0");
+  //msg2GS =
+  client.write(msg2GS);
+  //client.write("p095.0t135.0");// tell server there is connection, otherwise it spends a long time waiting for command.
+  //msg2GS = "pata";//'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here--> not working, why?
+  //client.write(msg2GS);//
     switch (GScommand){
       case 's':
         digitalWrite(pin_relay_PNT, LOW);
         Serial.println("EE: Re-orienting end effector.");
         st_status = reorient();//the actual task
         newGScommand = readNprint_GSEE_mssgs();
-        if ((newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+        if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'n') || (newGScommand == 'k') ||(newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
           GScommand = newGScommand;
         }
         if (st_status == true){
           Serial.println("EE: End effector re-oriented.");
           send_char_srv(GScommand);
-          msg2GS = 'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here.
-          client.write(msg2GS);//
         }
       break;
-  
+
+      case 'k':
+        digitalWrite(pin_relay_PNT, LOW);
+        Serial.print("EE: Manual re-orientation of end effector: PAN CLOCKWISE(");
+        Serial.print(MIN_MAN_REOR_ANGLE);
+        Serial.println(").");
+        Serial.println("EE: Go back to Idle to reset MIN_MAN_REOR_ANGLE.");
+        pan_pos = pan_pos + MIN_MAN_REOR_ANGLE;
+        panservo.write(pan_pos);
+        print_distances();
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'n') || (newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        MIN_MAN_REOR_ANGLE = 0.0;
+        send_char_srv(GScommand);
+      break;
+
+      case 'n':
+        digitalWrite(pin_relay_PNT, LOW);
+        Serial.print("EE: Manual re-orientation of end effector: PAN ANTI-CLOCKWISE(");
+        Serial.print(MIN_MAN_REOR_ANGLE);
+        Serial.println(").");
+        Serial.println("EE: Go back to Idle to reset MIN_MAN_REOR_ANGLE.");
+        pan_pos = pan_pos - MIN_MAN_REOR_ANGLE;
+        panservo.write(pan_pos);
+        print_distances();
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 'u') || (newGScommand == 'k') || (newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        MIN_MAN_REOR_ANGLE = 0.0;
+        send_char_srv(GScommand);
+      break;
+
+      case 'u':
+        digitalWrite(pin_relay_PNT, LOW);
+        Serial.print("EE: Manual re-orientation of end effector: TILT UP(");
+        Serial.print(MIN_MAN_REOR_ANGLE);
+        Serial.println(").");
+        Serial.println("EE: Go back to Idle to reset MIN_MAN_REOR_ANGLE.");
+        tilt_pos = tilt_pos - MIN_MAN_REOR_ANGLE;
+        tiltservo.write(tilt_pos);
+        print_distances();
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 'd') || (newGScommand == 'k') || (newGScommand == 'n') || (newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        MIN_MAN_REOR_ANGLE = 0.0;
+        send_char_srv(GScommand);
+      break;
+
+      case 'd':
+        digitalWrite(pin_relay_PNT, LOW);
+        Serial.print("EE: Manual re-orientation of end effector: TILT DOWN(");
+        Serial.print(MIN_MAN_REOR_ANGLE);
+        Serial.println(").");
+        Serial.println("EE: Go back to Idle to reset MIN_MAN_REOR_ANGLE.");
+        tilt_pos = tilt_pos + MIN_MAN_REOR_ANGLE;
+        tiltservo.write(tilt_pos);
+        print_distances();
+        newGScommand = readNprint_GSEE_mssgs();
+        if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'k') || (newGScommand == 'n') || (newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+          GScommand = newGScommand;
+        }
+        MIN_MAN_REOR_ANGLE = 0.0;
+        send_char_srv(GScommand);
+      break;
+      
       case 'c':
         Serial.println("EE: Activating suction cups.");
         digitalWrite(pin_relay_DFS1,LOW);
+        digitalWrite(pin_relay_PNT, HIGH);//pnt off
         st_status0 = activate(blackWire_DFS1, blackValue_DFS1);
         st_status1 = activate(blackWire_DFS2, blackValue_DFS2);
         st_status2 = activate(blackWire_DFS3, blackValue_DFS3);
         st_status = st_status0 && st_status1 && st_status2;
         newGScommand = readNprint_GSEE_mssgs();
-        if ((newGScommand == 's') || (newGScommand == 'i') || (newGScommand == 'a')){
+        if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'n') || (newGScommand == 'k') ||(newGScommand == 's') || (newGScommand == 'i') || (newGScommand == 'a')){
           GScommand = newGScommand;
         }
         if (st_status == true){
@@ -185,27 +258,30 @@ void loop()
         st_status2 = deactivate(blackWire_DFS3, blackValue_DFS3);
         st_status = st_status0 && st_status1 && st_status2;
         newGScommand = readNprint_GSEE_mssgs();
-        if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'a')){
+        if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'n') || (newGScommand == 'k') ||(newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'a')){
           GScommand = newGScommand;
         }
         if (st_status == true){
           Serial.println("EE: Suction cups deactivated.");
+          digitalWrite(pin_relay_PNT, LOW);//pnt back on
           send_char_srv(GScommand);  
         }
       break;
   
       case 'a':
         newGScommand = readNprint_GSEE_mssgs();
-        if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i')){
+        if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'n') || (newGScommand == 'k') ||(newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i')){
             GScommand = newGScommand;
           }
-        digitalWrite(pin_relay_PNT, HIGH);
+        MIN_MAN_REOR_ANGLE = 2.5;
+        //digitalWrite(pin_relay_PNT, HIGH);// if pnt is switched off it'll flop down in idle state
+        digitalWrite(pin_relay_PNT, LOW);
         Serial.println("EE: Idle state.");
       break;
       
       default:
         newGScommand = readNprint_GSEE_mssgs();
-        if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
+        if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'n') || (newGScommand == 'k') || (newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i') || (newGScommand == 'a')){
           GScommand = newGScommand;
         }
         Serial.println("EE: Waiting in state machine...");
@@ -241,6 +317,46 @@ void reconnect_GS(){
     }
   }
   return;
+}
+
+void print_distances(){
+  copy_array(rangevalueTOP, newArrayForSortingTOP, arraysize);
+  //copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
+  copy_array(rangevalueLEFT, newArrayForSortingLEFT, arraysize);
+  copy_array(rangevalueRIGHT, newArrayForSortingRIGHT, arraysize);
+  isort(newArrayForSortingTOP, arraysize);
+  //isort(newArrayForSortingBOTTOM, arraysize);
+  isort(newArrayForSortingLEFT, arraysize);
+  isort(newArrayForSortingRIGHT, arraysize);
+  //modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
+  modETOP = mode(newArrayForSortingTOP, arraysize);
+  modELEFT = mode(newArrayForSortingLEFT, arraysize);
+  modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
+
+  //Serial.println("EE: L,R,T,B distance:");
+  Serial.println("EE: L,R,T distance:");
+  Serial.print(modELEFT);
+  Serial.print(",");
+  Serial.print(modERIGHT);
+  Serial.print(",");
+  Serial.println(modETOP);
+  //Serial.print(",");
+  //Serial.println(modEBOTTOM);
+    
+  newSampleTOP = pulseIn(pwPinTOP, HIGH) / 5.82;
+  //newSampleBOTTOM = pulseIn(pwPinBOTTOM, HIGH) / 5.82;
+  newSampleLEFT = pulseIn(pwPinLEFT, HIGH) / 5.82;
+  newSampleRIGHT = pulseIn(pwPinRIGHT, HIGH) / 5.82;
+  
+  add_sample_filo(rangevalueTOP, newArrayFILOTOP, arraysize, newSampleTOP);
+  //add_sample_filo(rangevalueBOTTOM, newArrayFILOBOTTOM, arraysize, newSampleBOTTOM);
+  add_sample_filo(rangevalueLEFT, newArrayFILOLEFT, arraysize, newSampleLEFT);
+  add_sample_filo(rangevalueRIGHT, newArrayFILORIGHT, arraysize, newSampleRIGHT);
+  
+  copy_array(newArrayFILOTOP, rangevalueTOP, arraysize);
+  //copy_array(newArrayFILOBOTTOM, rangevalueBOTTOM, arraysize);
+  copy_array(newArrayFILOLEFT, rangevalueLEFT, arraysize);
+  copy_array(newArrayFILORIGHT, rangevalueRIGHT, arraysize);
 }
 
 bool reorient(){
@@ -351,6 +467,16 @@ bool reorient(){
   else
     return false; 
 }
+
+//bool man_reorient(){
+//  if (){
+//    tilt_pos = tilt_pos + 5.0;  
+//  }
+//  if(){
+//    tilt_pos = tilt_pos - 5.0;
+//  }
+//  tiltservo.write(tilt_pos);
+//}
 
 bool activate(int blackWire, float blackValue){
 
