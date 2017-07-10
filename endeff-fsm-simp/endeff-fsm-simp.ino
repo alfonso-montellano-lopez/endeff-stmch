@@ -9,14 +9,17 @@
 //#######################VARIABLES#########################
 //Re-orientation variables:
 Servo tiltservo, panservo;
-const int tilt = 6, pan = 5;
-float FIXED_PAN_POS = 95.0, MAX_PAN = 100.0, MIN_PAN = 90.0;
-float FIXED_TILT_POS = 135.0, MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0
+const int tilt = 3, pan = 5;
+float FIXED_PAN_POS = 95.0; //MAX_PAN = 100.0, MIN_PAN = 90.0;
+//lab test limits:
+float MAX_PAN = 100.0, MIN_PAN = 90.0;
+float FIXED_TILT_POS = 135.0; //MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0
+float MAX_TILT = 140.0, MIN_TILT = 135.0;
 float theta_pan = 0, theta_tilt = 0, prev_theta_pan = 0, prev_theta_tilt = 0;
 const float D_L2R = 418.0, D_T2B = 317.0;//mm//16.0;//cm //mm//9.0;//cm
 long dLEFT, dRIGHT, dLEFTprev, dRIGHTprev, dTOP, dBOTTOM, dTOPprev, dBOTTOMprev, dTOL = 20.0;//dTOL 60.0mm
 long abs_d_diff_PAN, abs_d_diff_TILT;
-const int pwPinTOP = 4, pwPinBOTTOM = 11, pwPinLEFT = 3, pwPinRIGHT = 9;//pin 10 crushes ethernet communication!!! //Set the pin to receive the signal.
+const int pwPinTOP = 9, pwPinLEFT = 11, pwPinRIGHT = 6;//pwPinBOTTOM = 11,//pin 10 crushes ethernet communication!!! //Set the pin to receive the signal.
 const int arraysize = 31;//15//201;//31;// more samples increase reaction time
 int rangevalueLEFT[arraysize], rangevalueRIGHT[arraysize], rangevalueTOP[arraysize], rangevalueBOTTOM[arraysize];
 int newArrayFILOTOP[arraysize],newArrayFILOBOTTOM[arraysize], newArrayFILOLEFT[arraysize], newArrayFILORIGHT[arraysize];
@@ -41,17 +44,18 @@ IPAddress server(192,168, 137, 20);//IP address of the server you're connecting 
 EthernetClient client;
 int port = 8888;
 //Digital Flow Switch (DFS) variables:
-int blackWire_DFS1 = 0, blackWire_DFS2 = 0, blackWire_DFS3 = 0;//Analogue input 0
+int blackWire_DFS1 = 0, blackWire_DFS2 = 1, blackWire_DFS3 = 2;//Analogue input 0
 int blackValue_DFS1 = 0, blackValue_DFS2 = 0, blackValue_DFS3 = 0;
 float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
 float max_blackWire_Volt = 4.0;
 //int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
 //Relays: // these pins don't interfere with Ethernet Shield (pin 10 does!!)
-#define pin_relay_PNT 8
-#define pin_relay_DFS1 2
+#define pin_relay_PNT 13
+#define pin_relay_DFS1 12
 //Micro-switches:
-int uswitch1 = 1; //Analogue input 1
-float uswitchValue;
+int uswitch1 = 4; // top //Analogue input 1
+int uswitch2 = 5; // bottom
+float uswitchValue, uswitchValue2;
 //Message to Ground Station:
 char msg2GS;
 //#############################FUNCTIONS#############################
@@ -82,15 +86,15 @@ void setup()
   pinMode(pwPinLEFT, INPUT);
   pinMode(pwPinRIGHT, INPUT);
   pinMode(pwPinTOP, INPUT);
-  pinMode(pwPinBOTTOM, INPUT);//the sensor at the bottom is sticking out 4mm with respect to the one on the top
+  //pinMode(pwPinBOTTOM, INPUT);//there is no bottom sensor anymore, LEFT is used instead //the sensor at the bottom is sticking out 4mm with respect to the one on the top
   delay(1000);
   for (int i = 0; i < arraysize; i++)
   {
     pulseTOP = pulseIn(pwPinTOP, HIGH);
     rangevalueTOP[i] = pulseTOP / 5.82;//mm
     
-    pulseBOTTOM = pulseIn(pwPinBOTTOM, HIGH);
-    rangevalueBOTTOM[i] = pulseBOTTOM / 5.82;//mm
+//    pulseBOTTOM = pulseIn(pwPinBOTTOM, HIGH);
+//    rangevalueBOTTOM[i] = pulseBOTTOM / 5.82;//mm
 
     pulseLEFT = pulseIn(pwPinLEFT, HIGH);
     rangevalueLEFT[i] = pulseLEFT / 5.82;//mm
@@ -102,10 +106,10 @@ void setup()
   isort(newArrayForSortingTOP, arraysize);
   modETOP = mode(newArrayForSortingTOP, arraysize);
   modETOPprev = modETOP;
-  copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
-  isort(newArrayForSortingBOTTOM, arraysize);
-  modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
-  modEBOTTOMprev = modEBOTTOM;
+//  copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
+//  isort(newArrayForSortingBOTTOM, arraysize);
+//  modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
+//  modEBOTTOMprev = modEBOTTOM;
   copy_array(rangevalueLEFT, newArrayForSortingLEFT, arraysize);
   isort(newArrayForSortingLEFT, arraysize);
   modELEFT = mode(newArrayForSortingLEFT, arraysize);
@@ -131,7 +135,7 @@ void setup()
 
 void loop()
 { 
-  bool st_status = false;
+  bool st_status = false, st_status0 = false, st_status1 = false, st_status2 = false;
   reconnect_GS();// if the server's disconnected, reconnect the client.
   delay(1500);//1000
   client.write('x');// tell server there is connection, otherwise it spends a long time waiting for command.
@@ -155,7 +159,10 @@ void loop()
       case 'c':
         Serial.println("EE: Activating suction cups.");
         digitalWrite(pin_relay_DFS1,LOW);
-        st_status = activate(blackWire_DFS1, blackValue_DFS1);
+        st_status0 = activate(blackWire_DFS1, blackValue_DFS1);
+        st_status1 = activate(blackWire_DFS2, blackValue_DFS2);
+        st_status2 = activate(blackWire_DFS3, blackValue_DFS3);
+        st_status = st_status0 && st_status1 && st_status2;
         newGScommand = readNprint_GSEE_mssgs();
         if ((newGScommand == 's') || (newGScommand == 'i') || (newGScommand == 'a')){
           GScommand = newGScommand;
@@ -164,14 +171,19 @@ void loop()
           Serial.println("EE: Suction cups activated.");
           send_char_srv(GScommand);  
         }
-        check_uswitch_contact(uswitch1);
+        //uswitches to be used later:
+        //check_uswitch_contact(uswitch1);
+        //check_uswitch_contact(uswitch2);//TODO: ANY MORE CHECKS WITH THE USWITCHES?
         
       break;
   
       case 'i':
         Serial.println("EE: De-activating suction cups.");
         digitalWrite(pin_relay_DFS1,HIGH);
-        st_status = deactivate(blackWire_DFS1, blackValue_DFS1);//after 20s voltage drops, pressure disappears completely after 160s
+        st_status0 = deactivate(blackWire_DFS1, blackValue_DFS1);//after 20s voltage drops, pressure disappears completely after 160s
+        st_status1 = deactivate(blackWire_DFS2, blackValue_DFS2);
+        st_status2 = deactivate(blackWire_DFS3, blackValue_DFS3);
+        st_status = st_status0 && st_status1 && st_status2;
         newGScommand = readNprint_GSEE_mssgs();
         if ((newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'a')){
           GScommand = newGScommand;
@@ -236,45 +248,47 @@ bool reorient(){
   bool tilt_ok = false, pan_ok = false;
 
   copy_array(rangevalueTOP, newArrayForSortingTOP, arraysize);
-  copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
+  //copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
   copy_array(rangevalueLEFT, newArrayForSortingLEFT, arraysize);
   copy_array(rangevalueRIGHT, newArrayForSortingRIGHT, arraysize);
   isort(newArrayForSortingTOP, arraysize);
-  isort(newArrayForSortingBOTTOM, arraysize);
+  //isort(newArrayForSortingBOTTOM, arraysize);
   isort(newArrayForSortingLEFT, arraysize);
   isort(newArrayForSortingRIGHT, arraysize);
-  modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
+  //modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
   modETOP = mode(newArrayForSortingTOP, arraysize);
   modELEFT = mode(newArrayForSortingLEFT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
-  
-  Serial.println("EE: L,R,T,B distance:");
+
+  //Serial.println("EE: L,R,T,B distance:");
+  Serial.println("EE: L,R,T distance:");
   Serial.print(modELEFT);
   Serial.print(",");
   Serial.print(modERIGHT);
   Serial.print(",");
-  Serial.print(modETOP);
-  Serial.print(",");
-  Serial.println(modEBOTTOM);
+  Serial.println(modETOP);
+  //Serial.print(",");
+  //Serial.println(modEBOTTOM);
     
   newSampleTOP = pulseIn(pwPinTOP, HIGH) / 5.82;
-  newSampleBOTTOM = pulseIn(pwPinBOTTOM, HIGH) / 5.82;
+  //newSampleBOTTOM = pulseIn(pwPinBOTTOM, HIGH) / 5.82;
   newSampleLEFT = pulseIn(pwPinLEFT, HIGH) / 5.82;
   newSampleRIGHT = pulseIn(pwPinRIGHT, HIGH) / 5.82;
   
   add_sample_filo(rangevalueTOP, newArrayFILOTOP, arraysize, newSampleTOP);
-  add_sample_filo(rangevalueBOTTOM, newArrayFILOBOTTOM, arraysize, newSampleBOTTOM);
+  //add_sample_filo(rangevalueBOTTOM, newArrayFILOBOTTOM, arraysize, newSampleBOTTOM);
   add_sample_filo(rangevalueLEFT, newArrayFILOLEFT, arraysize, newSampleLEFT);
   add_sample_filo(rangevalueRIGHT, newArrayFILORIGHT, arraysize, newSampleRIGHT);
   
   copy_array(newArrayFILOTOP, rangevalueTOP, arraysize);
-  copy_array(newArrayFILOBOTTOM, rangevalueBOTTOM, arraysize);
+  //copy_array(newArrayFILOBOTTOM, rangevalueBOTTOM, arraysize);
   copy_array(newArrayFILOLEFT, rangevalueLEFT, arraysize);
   copy_array(newArrayFILORIGHT, rangevalueRIGHT, arraysize);
   
   //tilt:
   //if ( (-modETOL < (modETOP - modEBOTTOM) ) && ( (modETOP - modEBOTTOM) < modETOL)  )
-  abs_d_diff_TILT = abs( modETOP - modEBOTTOM );
+  //abs_d_diff_TILT = abs( modETOP - modEBOTTOM );
+  abs_d_diff_TILT = abs( modETOP - modELEFT );
   //Serial.println(abs_d_diff_TILT);
   if ( ( abs_d_diff_TILT < modETOL ) || ( abs_d_diff_TILT > ( modETOL_FACTOR * modETOL ) ) )
   {
@@ -282,7 +296,8 @@ bool reorient(){
    tilt_ok = true;
   }
   else{
-    if(modETOP > modEBOTTOM)// && tilt_pos <= MAX_TILT)
+    //if(modETOP > modEBOTTOM)// && tilt_pos <= MAX_TILT)
+    if(modETOP > modELEFT)// && tilt_pos <= MAX_TILT)
     {
       tilt_pos = tilt_pos + PT_MIN;
       //Serial.println("in plus");
@@ -379,7 +394,8 @@ bool deactivate(int blackWire, float blackValue){
   if (blackValue <= DFS_off_threshold){
     Serial.println("EE: Suction cups on DFS OFF. Wait until there is no pressure in the circuit");
     Serial.println("EE: Please send 'waiting(a)' command from interface.");
-    delay(180000);
+    //delay(180000);
+    delay(300000);
     Serial.println("EE: Suction cups DETACHED.");
     return true;
   }
