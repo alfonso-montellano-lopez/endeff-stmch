@@ -37,7 +37,7 @@
  * ---------------------
  * VOLTAGE DIVIDERS AND DSF SIGNAL:
  * --------------------------------
- * DSF1(BLUE-TOP LEFT)/DSF2(YELLOW-TOP RIGHT)/DSF3(RED- BOTTOM LEFT)/DSF4(GREEN- BOTTOM RIGHT) --^^1K^^---> A0/A1/A2/A3
+ * DSF1(BLUE-TOP LEFT)/DSF2(YELLOW-TOP RIGHT)/DSF3(RED- BOTTOM LEFT)/DSF4(GREEN- BOTTOM RIGHT) --^^1K^^---> A0/A1/A2/A3 respectively
  *                                                                                                      |
  *                                                                                                      >
  *                                                                                                      560
@@ -56,34 +56,20 @@
 //Re-orientation variables:
 Servo tiltservo, panservo;
 const int tilt = 3, pan = 5;
-float FIXED_PAN_POS = 95.0; //MAX_PAN = 100.0, MIN_PAN = 90.0;
-//lab test limits:
-float MAX_PAN = 100.0, MIN_PAN = 90.0;
+float FIXED_PAN_POS = 95.0, pan_pos = FIXED_PAN_POS, FIXED_TILT_POS = 135.0, tilt_pos = FIXED_TILT_POS; //MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0 //MAX_PAN = 100.0, MIN_PAN = 90.0;
+float MAX_PAN = 100.0, MIN_PAN = 90.0, MAX_TILT = 140.0, MIN_TILT = 135.0; //these are lab test limits
 float MIN_MAN_REOR_ANGLE = 2.5;
-float FIXED_TILT_POS = 135.0; //MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0
-float MAX_TILT = 140.0, MIN_TILT = 135.0;
-float theta_pan = 0, theta_tilt = 0, prev_theta_pan = 0, prev_theta_tilt = 0;
-const float D_L2R = 418.0, D_T2B = 317.0;//mm//16.0;//cm //mm//9.0;//cm
-long dLEFT, dRIGHT, dLEFTprev, dRIGHTprev, dTOP, dBOTTOM, dTOPprev, dBOTTOMprev, dTOL = 20.0;//dTOL 60.0mm
 long abs_d_diff_PAN, abs_d_diff_TILT;
-const int pwPinTOP = 9, pwPinLEFT = 11, pwPinRIGHT = 6;//pwPinBOTTOM = 11,//pin 10 crushes ethernet communication!!! //Set the pin to receive the signal.
-const int arraysize = 31;//15//201;//31;// more samples increase reaction time
-int rangevalueLEFT[arraysize], rangevalueRIGHT[arraysize], rangevalueTOP[arraysize], rangevalueBOTTOM[arraysize];
-int newArrayFILOTOP[arraysize],newArrayFILOBOTTOM[arraysize], newArrayFILOLEFT[arraysize], newArrayFILORIGHT[arraysize];
-int newArrayForSortingTOP[arraysize], newArrayForSortingBOTTOM[arraysize], newArrayForSortingLEFT[arraysize], newArrayForSortingRIGHT[arraysize];
-int modETOP,  modETOPprev, modEBOTTOM, modEBOTTOMprev, modELEFT,  modELEFTprev, modERIGHT, modERIGHTprev;
-int modETOL = 20.0;//10.0//TILT
-int modETOL_FACTOR= 1000.0;
-int modETOL_PAN = 20.0;//20.0;//10.0
-boolean modETOP_has_changed = false, modEBOTTOM_has_changed = false;
-long newSampleTOP, newSampleBOTTOM, newSampleLEFT, newSampleRIGHT;
-long pulseLEFT, pulseRIGHT, pulseTOP, pulseBOTTOM;
-float tilt_pos = FIXED_TILT_POS, pan_pos = FIXED_PAN_POS;
-//float PT_MIN = 0.2, PT_MIN_PAN = 0.05;
+const int pwPinTOP = 9, pwPinLEFT = 11, pwPinRIGHT = 6;//pin 10 crushes ethernet communication!!!
+const int arraysize = 31;//more samples increase reaction time
+int newArrayFILOLEFT[arraysize], newArrayFILORIGHT[arraysize], newArrayFILOTOP[arraysize], rangevalueLEFT[arraysize], rangevalueRIGHT[arraysize], rangevalueTOP[arraysize], newArrayForSortingTOP[arraysize], newArrayForSortingLEFT[arraysize], newArrayForSortingRIGHT[arraysize];
+int modETOP, modETOPprev, modELEFT, modELEFTprev, modERIGHT, modERIGHTprev;
+int modETOL = 20.0, modETOL_FACTOR= 1000.0, modETOL_PAN = 20.0;//
+long newSampleTOP, newSampleLEFT, newSampleRIGHT;
+long pulseLEFT, pulseRIGHT, pulseTOP; 
 float PT_MIN = 0.4, PT_MIN_PAN = 1.0;
-float t0=0.0,tn=0.0;
-// State machine variable:
-char GScommand = 'a', GScommand_old = 'a', newGScommand = 'a';
+// State machine variables:
+char GScommand = 'a', newGScommand = 'a';//'a' is the idle state of the state machine
 //Ethernet variables:
 byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xEC, 0x19};
 IPAddress ip(192, 168, 137, 160);
@@ -91,27 +77,24 @@ IPAddress server(192,168, 137, 20);//IP address of the server you're connecting 
 EthernetClient client;
 int port = 8888;
 //Digital Flow Switch (DFS) variables:
-int blackWire_DFS1 = 0, blackWire_DFS2 = 1, blackWire_DFS3 = 2;//Analogue input 0
+int blackWire_DFS1 = 0, blackWire_DFS2 = 1, blackWire_DFS3 = 2;//Analogue inputs 0, 1 and 2 respectively
 int blackValue_DFS1 = 0, blackValue_DFS2 = 0, blackValue_DFS3 = 0;
-float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5;//minimum voltage indicating activation of suction cups attached to DFS.
-float max_blackWire_Volt = 4.0;
-//int pin_relay_DFS1 = 0, pin_relay_DFS2 = 1, pin_relay_DFS3 = 2;
-//Relays: // these pins don't interfere with Ethernet Shield (pin 10 does!!)
+float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5, max_blackWire_Volt = 4.0;//minimum voltage indicating activation of suction cups attached to DFS.
+//Relays:
 #define pin_relay_PNT 13
 #define pin_relay_DFS1 12
 //Micro-switches:
-int uswitch1 = 4; // top //Analogue input 1
-int uswitch2 = 5; // bottom
+int uswitch1 = 4; // top: analogue input 4
+int uswitch2 = 5; // bottom: analogue input 5
 float uswitchValue, uswitchValue2;
 //Message to Ground Station:
 char msg2GS[]={char(pan_pos)+char(tilt_pos)};
 //#############################FUNCTIONS#############################
 void setup()
 {
-
   //Serial:
   Serial.begin(9600);
-    //Ethernet:
+  //Ethernet:
   Ethernet.begin(mac, ip);
   delay(1000);// give the Ethernet shield a second to initialize:
   Serial.println("EE: Ethernet connecting...");
@@ -122,8 +105,7 @@ void setup()
     // if you didn't get a connection to the server:
     Serial.println("EE: Ethernet connection failed.");
   }
-  
-//  //Re-orientation:
+  //Re-orientation:
   tiltservo.attach(tilt);
   panservo.attach(pan);
   panservo.write(pan_pos);
@@ -133,15 +115,11 @@ void setup()
   pinMode(pwPinLEFT, INPUT);
   pinMode(pwPinRIGHT, INPUT);
   pinMode(pwPinTOP, INPUT);
-  //pinMode(pwPinBOTTOM, INPUT);//there is no bottom sensor anymore, LEFT is used instead //the sensor at the bottom is sticking out 4mm with respect to the one on the top
   delay(1000);
   for (int i = 0; i < arraysize; i++)
   {
     pulseTOP = pulseIn(pwPinTOP, HIGH);
     rangevalueTOP[i] = pulseTOP / 5.82;//mm
-    
-//    pulseBOTTOM = pulseIn(pwPinBOTTOM, HIGH);
-//    rangevalueBOTTOM[i] = pulseBOTTOM / 5.82;//mm
 
     pulseLEFT = pulseIn(pwPinLEFT, HIGH);
     rangevalueLEFT[i] = pulseLEFT / 5.82;//mm
@@ -153,30 +131,24 @@ void setup()
   isort(newArrayForSortingTOP, arraysize);
   modETOP = mode(newArrayForSortingTOP, arraysize);
   modETOPprev = modETOP;
-//  copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
-//  isort(newArrayForSortingBOTTOM, arraysize);
-//  modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
-//  modEBOTTOMprev = modEBOTTOM;
+
   copy_array(rangevalueLEFT, newArrayForSortingLEFT, arraysize);
   isort(newArrayForSortingLEFT, arraysize);
   modELEFT = mode(newArrayForSortingLEFT, arraysize);
   modELEFTprev = modELEFT;
+  
   copy_array(rangevalueRIGHT, newArrayForSortingRIGHT, arraysize);
   isort(newArrayForSortingRIGHT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
   modERIGHTprev = modERIGHT;
   
   //Relay:
-  pinMode(pin_relay_PNT, OUTPUT); //careful when assigning these with the Ethernet shield!
-  //pinMode(pin_relay_DFS2, OUTPUT); 
-  //pinMode(pin_relay_DFS3, OUTPUT);
+  pinMode(pin_relay_PNT, OUTPUT);
   pinMode(pin_relay_DFS1,OUTPUT);
   digitalWrite(pin_relay_PNT,HIGH);//on NO
   digitalWrite(pin_relay_DFS1,HIGH);
   
-  //GScommand = 'a';
   Serial.print("EE: Set-up completed.");
-  //client.write("EE ready.");
   delay(1000);
 }
 
@@ -184,14 +156,12 @@ void loop()
 { 
   bool st_status = false, st_status0 = false, st_status1 = false, st_status2 = false;
   reconnect_GS();// if the server's disconnected, reconnect the client.
-  delay(1500);//1000
-  //client.write("p095.0t135.0");
-  //msg2GS =
+  delay(1500);
   client.write(msg2GS);
   //client.write("p095.0t135.0");// tell server there is connection, otherwise it spends a long time waiting for command.
   //msg2GS = "pata";//'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here--> not working, why?
   //client.write(msg2GS);//
-    switch (GScommand){
+  switch (GScommand){
       case 's':
         digitalWrite(pin_relay_PNT, LOW);
         Serial.println("EE: Re-orienting end effector.");
@@ -290,10 +260,7 @@ void loop()
           Serial.println("EE: Suction cups activated.");
           send_char_srv(GScommand);  
         }
-        //uswitches to be used later:
-        //check_uswitch_contact(uswitch1);
-        //check_uswitch_contact(uswitch2);//TODO: ANY MORE CHECKS WITH THE USWITCHES?
-        
+        //uswitches to be used later://check_uswitch_contact(uswitch1);//check_uswitch_contact(uswitch2);//TODO: ANY MORE CHECKS WITH THE USWITCHES?
       break;
   
       case 'i':
@@ -318,7 +285,7 @@ void loop()
         newGScommand = readNprint_GSEE_mssgs();
         if ((newGScommand == 'd') || (newGScommand == 'u') || (newGScommand == 'n') || (newGScommand == 'k') ||(newGScommand == 's') || (newGScommand == 'c') || (newGScommand == 'i')){
             GScommand = newGScommand;
-          }
+        }
         MIN_MAN_REOR_ANGLE = 2.5;
         //digitalWrite(pin_relay_PNT, HIGH);// if pnt is switched off it'll flop down in idle state
         digitalWrite(pin_relay_PNT, LOW);
@@ -367,40 +334,33 @@ void reconnect_GS(){
 
 void print_distances(){
   copy_array(rangevalueTOP, newArrayForSortingTOP, arraysize);
-  //copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
   copy_array(rangevalueLEFT, newArrayForSortingLEFT, arraysize);
   copy_array(rangevalueRIGHT, newArrayForSortingRIGHT, arraysize);
+  
   isort(newArrayForSortingTOP, arraysize);
-  //isort(newArrayForSortingBOTTOM, arraysize);
   isort(newArrayForSortingLEFT, arraysize);
   isort(newArrayForSortingRIGHT, arraysize);
-  //modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
+
   modETOP = mode(newArrayForSortingTOP, arraysize);
   modELEFT = mode(newArrayForSortingLEFT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
 
-  //Serial.println("EE: L,R,T,B distance:");
   Serial.println("EE: L,R,T distance:");
   Serial.print(modELEFT);
   Serial.print(",");
   Serial.print(modERIGHT);
   Serial.print(",");
   Serial.println(modETOP);
-  //Serial.print(",");
-  //Serial.println(modEBOTTOM);
     
   newSampleTOP = pulseIn(pwPinTOP, HIGH) / 5.82;
-  //newSampleBOTTOM = pulseIn(pwPinBOTTOM, HIGH) / 5.82;
   newSampleLEFT = pulseIn(pwPinLEFT, HIGH) / 5.82;
   newSampleRIGHT = pulseIn(pwPinRIGHT, HIGH) / 5.82;
   
   add_sample_filo(rangevalueTOP, newArrayFILOTOP, arraysize, newSampleTOP);
-  //add_sample_filo(rangevalueBOTTOM, newArrayFILOBOTTOM, arraysize, newSampleBOTTOM);
   add_sample_filo(rangevalueLEFT, newArrayFILOLEFT, arraysize, newSampleLEFT);
   add_sample_filo(rangevalueRIGHT, newArrayFILORIGHT, arraysize, newSampleRIGHT);
   
   copy_array(newArrayFILOTOP, rangevalueTOP, arraysize);
-  //copy_array(newArrayFILOBOTTOM, rangevalueBOTTOM, arraysize);
   copy_array(newArrayFILOLEFT, rangevalueLEFT, arraysize);
   copy_array(newArrayFILORIGHT, rangevalueRIGHT, arraysize);
 }
@@ -414,10 +374,8 @@ bool reorient(){
   copy_array(rangevalueLEFT, newArrayForSortingLEFT, arraysize);
   copy_array(rangevalueRIGHT, newArrayForSortingRIGHT, arraysize);
   isort(newArrayForSortingTOP, arraysize);
-  //isort(newArrayForSortingBOTTOM, arraysize);
   isort(newArrayForSortingLEFT, arraysize);
   isort(newArrayForSortingRIGHT, arraysize);
-  //modEBOTTOM = mode(newArrayForSortingBOTTOM, arraysize);
   modETOP = mode(newArrayForSortingTOP, arraysize);
   modELEFT = mode(newArrayForSortingLEFT, arraysize);
   modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
@@ -448,43 +406,31 @@ bool reorient(){
   copy_array(newArrayFILORIGHT, rangevalueRIGHT, arraysize);
   
   //tilt:
-  //if ( (-modETOL < (modETOP - modEBOTTOM) ) && ( (modETOP - modEBOTTOM) < modETOL)  )
-  //abs_d_diff_TILT = abs( modETOP - modEBOTTOM );
   abs_d_diff_TILT = abs( modETOP - modELEFT );
-  //Serial.println(abs_d_diff_TILT);
   if ( ( abs_d_diff_TILT < modETOL ) || ( abs_d_diff_TILT > ( modETOL_FACTOR * modETOL ) ) )
   {
    tilt_pos = tilt_pos;
    tilt_ok = true;
   }
   else{
-    //if(modETOP > modEBOTTOM)// && tilt_pos <= MAX_TILT)
     if(modETOP > modELEFT)// && tilt_pos <= MAX_TILT)
     {
       tilt_pos = tilt_pos + PT_MIN;
-      //Serial.println("in plus");
     }
-    else //(modETOP < modEBOTTOM && tilt_pos >= MIN_TILT)
     {
       tilt_pos = tilt_pos - PT_MIN;
-      //Serial.println("in minus");
     }
     if (tilt_pos >= MAX_TILT)
     {
       tilt_pos = MAX_TILT;
-      //Serial.println("over upper limit");
     }
     if (tilt_pos <= MIN_TILT)
     {
       tilt_pos = MIN_TILT;
-      //Serial.println("over lower limit");
     }
-    //Serial.println("moving");
   }
 //pan:
-  //if ( (-modETOL_PAN < (modELEFT - modERIGHT) ) && ( (modELEFT - modERIGHT) < modETOL_PAN)  )
   abs_d_diff_PAN = abs( modELEFT - modERIGHT );
-  //Serial.println(abs_d_diff_PAN);
   if ( ( abs_d_diff_PAN < modETOL_PAN ) || ( abs_d_diff_PAN > ( modETOL_FACTOR * modETOL_PAN ) ) )
   {
    pan_pos = pan_pos;
@@ -501,28 +447,12 @@ bool reorient(){
     }
   }
   
-  tiltservo.write(tilt_pos);//set pan position
-  //tiltservo.write(FIXED_TILT_POS);//WHILE TESTING PAN ONLY
-  panservo.write(pan_pos);//set pan position
-  //panservo.write(FIXED_PAN_POS);
  
   if (tilt_ok == true && pan_ok == true)
-  {
     return true;  
-  }
   else
     return false; 
 }
-
-//bool man_reorient(){
-//  if (){
-//    tilt_pos = tilt_pos + 5.0;  
-//  }
-//  if(){
-//    tilt_pos = tilt_pos - 5.0;
-//  }
-//  tiltservo.write(tilt_pos);
-//}
 
 bool activate(int blackWire, float blackValue){
 
@@ -669,59 +599,3 @@ int mode(int *x, int n) {
     return mode;
   }
 }
-
-//Function to print the arrays.
-void printArray(int *a, int n)
-{
-  for (int i = 0; i < n; i++)
-  {
-    Serial.print(a[i], DEC);
-    Serial.print(' ');
-  }
-
-  Serial.println();
-}
-
-//DFS:
-
-void turn_DFS_on(int relay_DFS){
-    digitalWrite(relay_DFS,HIGH);
-    Serial.println("EE: DFS on.");
-}
-void turn_DFS_off(int relay_DFS){
-    digitalWrite(relay_DFS,LOW);
-    Serial.println("EE: DFS off.");
-}
-
-bool check_attachment(int blackWire_DFS, float blackValue_DFS){
-  blackValue_DFS = analogRead(blackWire_DFS);
-  blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
-  Serial.print(DFS_on_threshold);
-  Serial.print(",");
-  Serial.println(blackValue_DFS);
-  if (blackValue_DFS >= DFS_on_threshold){
-    Serial.println("EE: Suction cups on DFS ON.");
-    return true;
-  }
-  else{
-    Serial.println("EE: Suction cups on DFS are not ON yet. Try again.");
-    return false;
-  }
-}
-
-bool check_detachment(int blackWire_DFS, float blackValue_DFS){
-  blackValue_DFS = analogRead(blackWire_DFS);
-  blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
-  Serial.print(DFS_off_threshold);
-  Serial.print(",");
-  Serial.println(blackValue_DFS);
-  if (blackValue_DFS <= DFS_off_threshold){
-    Serial.println("EE: Suction cups on DFS are OFF.");
-    return true;
-  }
-  else{
-    Serial.println("EE: Suction cups on DFS are not OFF yet. Try again.");
-    return false;
-  }
-}
-
