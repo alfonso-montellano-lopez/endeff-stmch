@@ -1,4 +1,50 @@
 //End Effector FSM
+//##########CONNECTIONS DIAGRAM############################
+/*
+ * SONAR SENSORS:
+ * --------------
+ * TOP SENSOR:
+ * -----------
+ * RED    ---> 5V
+ * YELLOW ---> digital pin 9 (PWM)
+ * BLUE   ---> GND
+ * -----------
+ * LEFT SENSOR:
+ * ------------
+ * RED    ---> 5V
+ * YELLOW ---> digital pin 11 (PWM)
+ * BLUE   ---> GND
+ * ------------
+ * RIGHT SENSOR:
+ * -------------
+ * RED    ---> 5V
+ * YELLOW ---> digital pin 6 (PWM)
+ * BLUE   ---> GND
+ * ------------
+ * PAN AND TILT CONTROL:
+ * ---------------------
+ * BLUE (PAN)   ---> digital pin 5 (PWM)
+ * GREEN        ---> GND 
+ * RED          ---> GND
+ * YELLOW (TILT)---> digital pin 3 (PWM)
+ * ---------------------
+ * DSFs AND PAN AND TILT RELAYS:
+ * -----------------------------
+ * RED          ---> 5V
+ * YELLOW (P&T) ---> digital pin 13
+ * GREEN (DSFs) ---> digital pin 12
+ * BLUE         ---> GND
+ * ---------------------
+ * VOLTAGE DIVIDERS AND DSF SIGNAL:
+ * --------------------------------
+ * DSF1(BLUE-TOP LEFT)/DSF2(YELLOW-TOP RIGHT)/DSF3(RED- BOTTOM LEFT)/DSF4(GREEN- BOTTOM RIGHT) --^^1K^^---> A0/A1/A2/A3
+ *                                                                                                      |
+ *                                                                                                      >
+ *                                                                                                      560
+ *                                                                                                      >
+ *                                                                                                      |
+ *                                                                                                     GND                                                            
+ */
 //#######################INCLUDES##########################
 //Ethernet includes:
 #include <SPI.h>
@@ -28,7 +74,7 @@ int newArrayForSortingTOP[arraysize], newArrayForSortingBOTTOM[arraysize], newAr
 int modETOP,  modETOPprev, modEBOTTOM, modEBOTTOMprev, modELEFT,  modELEFTprev, modERIGHT, modERIGHTprev;
 int modETOL = 20.0;//10.0//TILT
 int modETOL_FACTOR= 1000.0;
-int modETOL_PAN = 20.0;//10.0
+int modETOL_PAN = 20.0;//20.0;//10.0
 boolean modETOP_has_changed = false, modEBOTTOM_has_changed = false;
 long newSampleTOP, newSampleBOTTOM, newSampleLEFT, newSampleRIGHT;
 long pulseLEFT, pulseRIGHT, pulseTOP, pulseBOTTOM;
