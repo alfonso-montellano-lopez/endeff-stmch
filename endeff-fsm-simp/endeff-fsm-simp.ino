@@ -83,6 +83,8 @@ float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5, max_blackWire_Volt = 4.0;
 //Relays:
 #define pin_relay_PNT 13
 #define pin_relay_DFS1 12
+#define pin_greyWire_DSF 2 //controls suction ON
+#define pin_whiteWire_DSF 3 //controls RELEASE valve
 //Micro-switches:
 int uswitch1 = 4; // top: analogue input 4
 int uswitch2 = 5; // bottom: analogue input 5
@@ -145,8 +147,12 @@ void setup()
   //Relay:
   pinMode(pin_relay_PNT, OUTPUT);
   pinMode(pin_relay_DFS1,OUTPUT);
+  pinMode(pin_greyWire_DSF, OUTPUT);
+  pinMode(pin_whiteWire_DSF,OUTPUT);
   digitalWrite(pin_relay_PNT,HIGH);//on NO
   digitalWrite(pin_relay_DFS1,HIGH);
+  digitalWrite(pin_greyWire_DSF,HIGH);//on NO
+  digitalWrite(pin_whiteWire_DSF,HIGH);
   
   Serial.print("EE: Set-up completed.");
   delay(1000);
@@ -301,6 +307,27 @@ void loop()
       break;
     }
 }
+//Activate suction:
+void activate_suction()
+{
+    digitalWrite(pin_greyWire_DSF,LOW);
+    digitalWrite(pin_whiteWire_DSF,HIGH);
+    delay(2000);
+}
+
+void deactivate_suction()
+{
+    digitalWrite(pin_greyWire_DSF,HIGH);
+    digitalWrite(pin_whiteWire_DSF,LOW);
+    delay(2000);
+}
+
+void ejector_standby()//keep ejector powered on but in idle state (no suction)
+{
+    digitalWrite(pin_greyWire_DSF,HIGH);
+    digitalWrite(pin_whiteWire_DSF,HIGH);
+    delay(2000);
+}
 
 //Ethernet functions:
 
@@ -369,41 +396,7 @@ bool reorient(){
   
   bool tilt_ok = false, pan_ok = false;
 
-  copy_array(rangevalueTOP, newArrayForSortingTOP, arraysize);
-  //copy_array(rangevalueBOTTOM, newArrayForSortingBOTTOM, arraysize);
-  copy_array(rangevalueLEFT, newArrayForSortingLEFT, arraysize);
-  copy_array(rangevalueRIGHT, newArrayForSortingRIGHT, arraysize);
-  isort(newArrayForSortingTOP, arraysize);
-  isort(newArrayForSortingLEFT, arraysize);
-  isort(newArrayForSortingRIGHT, arraysize);
-  modETOP = mode(newArrayForSortingTOP, arraysize);
-  modELEFT = mode(newArrayForSortingLEFT, arraysize);
-  modERIGHT = mode(newArrayForSortingRIGHT, arraysize);
-
-  //Serial.println("EE: L,R,T,B distance:");
-  Serial.println("EE: L,R,T distance:");
-  Serial.print(modELEFT);
-  Serial.print(",");
-  Serial.print(modERIGHT);
-  Serial.print(",");
-  Serial.println(modETOP);
-  //Serial.print(",");
-  //Serial.println(modEBOTTOM);
-    
-  newSampleTOP = pulseIn(pwPinTOP, HIGH) / 5.82;
-  //newSampleBOTTOM = pulseIn(pwPinBOTTOM, HIGH) / 5.82;
-  newSampleLEFT = pulseIn(pwPinLEFT, HIGH) / 5.82;
-  newSampleRIGHT = pulseIn(pwPinRIGHT, HIGH) / 5.82;
-  
-  add_sample_filo(rangevalueTOP, newArrayFILOTOP, arraysize, newSampleTOP);
-  //add_sample_filo(rangevalueBOTTOM, newArrayFILOBOTTOM, arraysize, newSampleBOTTOM);
-  add_sample_filo(rangevalueLEFT, newArrayFILOLEFT, arraysize, newSampleLEFT);
-  add_sample_filo(rangevalueRIGHT, newArrayFILORIGHT, arraysize, newSampleRIGHT);
-  
-  copy_array(newArrayFILOTOP, rangevalueTOP, arraysize);
-  //copy_array(newArrayFILOBOTTOM, rangevalueBOTTOM, arraysize);
-  copy_array(newArrayFILOLEFT, rangevalueLEFT, arraysize);
-  copy_array(newArrayFILORIGHT, rangevalueRIGHT, arraysize);
+  print_distances();
   
   //tilt:
   abs_d_diff_TILT = abs( modETOP - modELEFT );
@@ -417,6 +410,7 @@ bool reorient(){
     {
       tilt_pos = tilt_pos + PT_MIN;
     }
+    else
     {
       tilt_pos = tilt_pos - PT_MIN;
     }
@@ -447,6 +441,8 @@ bool reorient(){
     }
   }
   
+  tiltservo.write(tilt_pos);//set pan position //tiltservo.write(FIXED_TILT_POS);//WHILE TESTING PAN ONLY
+  panservo.write(pan_pos);//set pan position //panservo.write(FIXED_PAN_POS);
  
   if (tilt_ok == true && pan_ok == true)
     return true;  
@@ -527,6 +523,50 @@ bool check_uswitch_contact(int uswitch)
     return false;
   }
 }
+//DFS:
+
+void turn_DFS_on(int relay_DFS){
+    digitalWrite(relay_DFS,HIGH);
+    Serial.println("EE: DFS on.");
+}
+void turn_DFS_off(int relay_DFS){
+    digitalWrite(relay_DFS,LOW);
+    Serial.println("EE: DFS off.");
+}
+
+bool check_attachment(int blackWire_DFS, float blackValue_DFS){
+  blackValue_DFS = analogRead(blackWire_DFS);
+  blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
+  Serial.print(DFS_on_threshold);
+  Serial.print(",");
+  Serial.println(blackValue_DFS);
+  if (blackValue_DFS >= DFS_on_threshold){
+    Serial.println("EE: Suction cups on DFS ON.");
+    return true;
+  }
+  else{
+    Serial.println("EE: Suction cups on DFS are not ON yet. Try again.");
+    return false;
+  }
+}
+
+bool check_detachment(int blackWire_DFS, float blackValue_DFS){
+  blackValue_DFS = analogRead(blackWire_DFS);
+  blackValue_DFS = map(blackValue_DFS,0,1023,0.0,max_blackWire_Volt);
+  Serial.print(DFS_off_threshold);
+  Serial.print(",");
+  Serial.println(blackValue_DFS);
+  if (blackValue_DFS <= DFS_off_threshold){
+    Serial.println("EE: Suction cups on DFS are OFF.");
+    return true;
+  }
+  else{
+    Serial.println("EE: Suction cups on DFS are not OFF yet. Try again.");
+    return false;
+  }
+}
+
+//------------------------------------------------------------------------//
 
 //Additional functions:
 
