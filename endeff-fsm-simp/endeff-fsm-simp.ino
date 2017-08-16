@@ -253,6 +253,7 @@ void loop()
       case 'c':
         Serial.println("EE: Activating suction cups.");
         digitalWrite(pin_relay_DFS1,LOW);
+        digitalWrite(pin_greyWire_DSF,LOW);//suction on
         digitalWrite(pin_relay_PNT, HIGH);//pnt off
         st_status0 = activate(blackWire_DFS1, blackValue_DFS1);
         st_status1 = activate(blackWire_DFS2, blackValue_DFS2);
@@ -271,7 +272,9 @@ void loop()
   
       case 'i':
         Serial.println("EE: De-activating suction cups.");
+        digitalWrite(pin_greyWire_DSF,HIGH);//suction off
         digitalWrite(pin_relay_DFS1,HIGH);
+        digitalWrite(pin_whiteWire_DSF,LOW);//release on
         st_status0 = deactivate(blackWire_DFS1, blackValue_DFS1);//after 20s voltage drops, pressure disappears completely after 160s
         st_status1 = deactivate(blackWire_DFS2, blackValue_DFS2);
         st_status2 = deactivate(blackWire_DFS3, blackValue_DFS3);
@@ -283,8 +286,10 @@ void loop()
         if (st_status == true){
           Serial.println("EE: Suction cups deactivated.");
           digitalWrite(pin_relay_PNT, LOW);//pnt back on
+          digitalWrite(pin_whiteWire_DSF,HIGH);//release off
           send_char_srv(GScommand);  
         }
+        
       break;
   
       case 'a':
@@ -493,7 +498,8 @@ bool deactivate(int blackWire, float blackValue){
     Serial.println("EE: Suction cups on DFS OFF. Wait until there is no pressure in the circuit");
     Serial.println("EE: Please send 'waiting(a)' command from interface.");
     //delay(180000);
-    delay(300000);
+    //delay(300000);
+    delay(1000);
     Serial.println("EE: Suction cups DETACHED.");
     return true;
   }
