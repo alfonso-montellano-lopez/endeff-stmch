@@ -90,7 +90,8 @@ int uswitch1 = 4; // top: analogue input 4
 int uswitch2 = 5; // bottom: analogue input 5
 float uswitchValue, uswitchValue2;
 //Message to Ground Station:
-char msg2GS[]={char(pan_pos)+char(tilt_pos)};
+String leftheader = "l", rightheader = "r", topheader = "t", leftdistance = "0000", rightdistance = "0000", topdistance = "0000";//distance in mm
+String panheader = "p", tiltheader = "t", panangle = "0000", tiltangle = "0000";//angle in degx10
 //#############################FUNCTIONS#############################
 void setup()
 {
@@ -112,8 +113,7 @@ void setup()
   panservo.attach(pan);
   panservo.write(pan_pos);
   tiltservo.write(tilt_pos);
-  //msg2GS = 'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here.
-  client.write(msg2GS);//
+  
   pinMode(pwPinLEFT, INPUT);
   pinMode(pwPinRIGHT, INPUT);
   pinMode(pwPinTOP, INPUT);
@@ -163,10 +163,6 @@ void loop()
   bool st_status = false, st_status0 = false, st_status1 = false, st_status2 = false;
   reconnect_GS();// if the server's disconnected, reconnect the client.
   delay(1500);
-  client.write(msg2GS);
-  //client.write("p095.0t135.0");// tell server there is connection, otherwise it spends a long time waiting for command.
-  //msg2GS = "pata";//'p' + char(pan_pos) + 't' + char(tilt_pos);//TEST: Send pan and tilt orientation angles to GS from here--> not working, why?
-  //client.write(msg2GS);//
   switch (GScommand){
       case 's':
         digitalWrite(pin_relay_PNT, LOW);
@@ -311,6 +307,12 @@ void loop()
         Serial.println("EE: Waiting in state machine...");
       break;
     }
+    store_distances_for_GS();
+    store_pnt_angles_for_GS();
+    if(client.connected())
+    {
+      client.print(leftheader + leftdistance + rightheader + rightdistance + topheader + topdistance + ';' + panheader + panangle + tiltheader + tiltangle + ';');
+    }
 }
 //Activate suction:
 void activate_suction()
@@ -395,6 +397,17 @@ void print_distances(){
   copy_array(newArrayFILOTOP, rangevalueTOP, arraysize);
   copy_array(newArrayFILOLEFT, rangevalueLEFT, arraysize);
   copy_array(newArrayFILORIGHT, rangevalueRIGHT, arraysize);
+}
+
+void store_distances_for_GS(){
+ leftdistance = modELEFT;
+ rightdistance = modERIGHT;
+ topdistance = modETOP; 
+}
+
+void store_pnt_angles_for_GS(){
+ panangle = pan_pos;
+ tiltangle = tilt_pos;
 }
 
 bool reorient(){
