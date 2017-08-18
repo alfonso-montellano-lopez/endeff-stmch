@@ -90,8 +90,9 @@ int uswitch1 = 4; // top: analogue input 4
 int uswitch2 = 5; // bottom: analogue input 5
 float uswitchValue, uswitchValue2;
 //Message to Ground Station:
-String leftheader = "l", rightheader = "r", topheader = "t", leftdistance = "0000", rightdistance = "0000", topdistance = "0000";//distance in mm
-String panheader = "p", tiltheader = "t", panangle = "0000", tiltangle = "0000";//angle in degx10
+String leftheader = "l", rightheader = "r", topheader = "o", leftdistance = "0000", rightdistance = "0000", topdistance = "0000";//distance in mm
+String panheader = "p", tiltheader = "t", Spanangle = "0000", Stiltangle = "0000";//angle in degx10
+String distances_n_angles_2_GS;
 //#############################FUNCTIONS#############################
 void setup()
 {
@@ -308,11 +309,13 @@ void loop()
       break;
     }
     store_distances_for_GS();
-    store_pnt_angles_for_GS();
+    store_pnt_angles_for_GS(pan_pos, tilt_pos);
+    distances_n_angles_2_GS = leftdistance + rightheader + rightdistance + topheader + topdistance + panheader + Spanangle + tiltheader + Stiltangle;
     if(client.connected())
     {
-      client.print(leftheader + leftdistance + rightheader + rightdistance + topheader + topdistance + ';' + panheader + panangle + tiltheader + tiltangle + ';');
+      client.print(distances_n_angles_2_GS);
     }
+    Serial.println(distances_n_angles_2_GS);
 }
 //Activate suction:
 void activate_suction()
@@ -400,14 +403,43 @@ void print_distances(){
 }
 
 void store_distances_for_GS(){
+  
  leftdistance = modELEFT;
  rightdistance = modERIGHT;
- topdistance = modETOP; 
+ topdistance = modETOP;
+ 
+ if(modELEFT > 10000){
+  leftdistance = "10000";
+ }
+ if(modELEFT < 1000){
+  leftdistance = "0" + leftdistance;
+ }
+ if(modERIGHT > 10000){
+  rightdistance = "10000";
+ }
+ if(modERIGHT < 1000){
+  rightdistance = "0" + rightdistance;
+ }
+ if(modETOP > 10000){
+  topdistance = "10000";
+ }
+ if(modETOP < 1000){
+  topdistance = "0" + topdistance;
+ }
 }
 
-void store_pnt_angles_for_GS(){
- panangle = pan_pos;
- tiltangle = tilt_pos;
+void store_pnt_angles_for_GS(float pan_pos, float pan_tilt){
+ int panangle_formatted, tiltangle_formatted;
+ panangle_formatted = (int)(pan_pos * 10);
+ tiltangle_formatted = (int)(tilt_pos * 10);
+ Spanangle = panangle_formatted;
+ Stiltangle = tiltangle_formatted;
+ if(panangle_formatted < 1000){
+  Spanangle = "0" + Spanangle;
+ }
+ if(tiltangle_formatted < 1000){
+  Stiltangle = "0" + Stiltangle;
+ }
 }
 
 bool reorient(){
