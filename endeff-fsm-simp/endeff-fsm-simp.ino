@@ -175,7 +175,7 @@ void loop()
         }
         if (st_status == true){
           Serial.println("EE: End effector re-oriented.");
-          send_char_srv(GScommand);
+          //send_char_srv(GScommand);
         }
       break;
 
@@ -193,7 +193,7 @@ void loop()
           GScommand = newGScommand;
         }
         MIN_MAN_REOR_ANGLE = 0.0;
-        send_char_srv(GScommand);
+        //send_char_srv(GScommand);
       break;
 
       case 'n':
@@ -210,7 +210,7 @@ void loop()
           GScommand = newGScommand;
         }
         MIN_MAN_REOR_ANGLE = 0.0;
-        send_char_srv(GScommand);
+        //send_char_srv(GScommand);
       break;
 
       case 'u':
@@ -227,7 +227,7 @@ void loop()
           GScommand = newGScommand;
         }
         MIN_MAN_REOR_ANGLE = 0.0;
-        send_char_srv(GScommand);
+        //send_char_srv(GScommand);
       break;
 
       case 'd':
@@ -244,7 +244,7 @@ void loop()
           GScommand = newGScommand;
         }
         MIN_MAN_REOR_ANGLE = 0.0;
-        send_char_srv(GScommand);
+        //send_char_srv(GScommand);
       break;
       
       case 'c':
@@ -262,7 +262,7 @@ void loop()
         }
         if (st_status == true){
           Serial.println("EE: Suction cups activated.");
-          send_char_srv(GScommand);  
+          //send_char_srv(GScommand);  
         }
         //uswitches to be used later://check_uswitch_contact(uswitch1);//check_uswitch_contact(uswitch2);//TODO: ANY MORE CHECKS WITH THE USWITCHES?
       break;
@@ -284,7 +284,7 @@ void loop()
           Serial.println("EE: Suction cups deactivated.");
           digitalWrite(pin_relay_PNT, LOW);//pnt back on
           digitalWrite(pin_whiteWire_DSF,HIGH);//release off
-          send_char_srv(GScommand);  
+          //send_char_srv(GScommand);  
         }
         
       break;
@@ -309,7 +309,7 @@ void loop()
       break;
     }
     store_distances_for_GS();
-    store_pnt_angles_for_GS(pan_pos, tilt_pos);
+    store_pnt_angles_for_GS();
     distances_n_angles_2_GS = leftdistance + rightheader + rightdistance + topheader + topdistance + panheader + Spanangle + tiltheader + Stiltangle;
     if(client.connected())
     {
@@ -428,7 +428,7 @@ void store_distances_for_GS(){
  }
 }
 
-void store_pnt_angles_for_GS(float pan_pos, float pan_tilt){
+void store_pnt_angles_for_GS(){
  int panangle_formatted, tiltangle_formatted;
  panangle_formatted = (int)(pan_pos * 10);
  tiltangle_formatted = (int)(tilt_pos * 10);
