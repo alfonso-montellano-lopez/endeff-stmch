@@ -28,7 +28,7 @@
  * RED          ---> GND
  * YELLOW (TILT)---> digital pin 3 (PWM)
  * ---------------------
- * DSFs AND PAN AND TILT RELAYS:
+ * DFSs AND PAN AND TILT RELAYS:
  * -----------------------------
  * RED          ---> 5V
  * YELLOW (P&T) ---> digital pin 13
@@ -37,7 +37,7 @@
  * ---------------------
  * VOLTAGE DIVIDERS AND DSF SIGNAL:
  * --------------------------------
- * DSF1(BLUE-TOP LEFT)/DSF2(YELLOW-TOP RIGHT)/DSF3(RED- BOTTOM LEFT)/DSF4(GREEN- BOTTOM RIGHT) --^^1K^^---> A0/A1/A2/A3 respectively
+ * DFS1(BLUE-TOP LEFT)/DFS2(YELLOW-TOP RIGHT)/DFS3(RED- BOTTOM LEFT)/DFS4(GREEN- BOTTOM RIGHT) --^^1K^^---> A0/A1/A2/A3 respectively
  *                                                                                                      |
  *                                                                                                      >
  *                                                                                                      560
@@ -56,15 +56,17 @@
 //Re-orientation variables:
 Servo tiltservo, panservo;
 const int tilt = 3, pan = 5;
-float FIXED_PAN_POS = 95.0, pan_pos = FIXED_PAN_POS, FIXED_TILT_POS = 135.0, tilt_pos = FIXED_TILT_POS; //MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0 //MAX_PAN = 100.0, MIN_PAN = 90.0;
-float MAX_PAN = 100.0, MIN_PAN = 90.0, MAX_TILT = 140.0, MIN_TILT = 135.0; //these are lab test limits
-float MIN_MAN_REOR_ANGLE = 2.5;
+float FIXED_PAN_POS = 95.0, pan_pos = FIXED_PAN_POS, FIXED_TILT_POS = 145.0, tilt_pos = FIXED_TILT_POS; //FIXED_TILT_POS changed from 135.0 to 125.0 after noticing slack on the tilt motor//MAX_TILT = 140.0, MIN_TILT = 125.0;//130.0 //MAX_PAN = 100.0, MIN_PAN = 90.0;
+//float MAX_PAN = 100.0, MIN_PAN = 90.0, MAX_TILT = 140.0, MIN_TILT = 135.0; //these are lab test limits
+//double check limits for re-assembled motor:
+float MAX_PAN = 100.0, MIN_PAN = 90.0, MAX_TILT = 145.0, MIN_TILT = 125.0; //for re-assembled tilt #2 125 gives you a fully vertical position and 145 a nearly fully horizontal position.
+float MIN_MAN_REOR_ANGLE = 2.5;//with the re-assembled tilt motor this value will probably have to be increased as the range of motion is reduced from fully vertical 125 to fully horizontal 145. 
 long abs_d_diff_PAN, abs_d_diff_TILT;
 const int pwPinTOP = 9, pwPinLEFT = 11, pwPinRIGHT = 6;//pin 10 crushes ethernet communication!!!
-const int arraysize = 31;//more samples increase reaction time
+const int arraysize = 9;//31;//more samples increase reaction time
 int newArrayFILOLEFT[arraysize], newArrayFILORIGHT[arraysize], newArrayFILOTOP[arraysize], rangevalueLEFT[arraysize], rangevalueRIGHT[arraysize], rangevalueTOP[arraysize], newArrayForSortingTOP[arraysize], newArrayForSortingLEFT[arraysize], newArrayForSortingRIGHT[arraysize];
 int modETOP, modETOPprev, modELEFT, modELEFTprev, modERIGHT, modERIGHTprev;
-int modETOL = 20.0, modETOL_FACTOR= 1000.0, modETOL_PAN = 20.0;//
+int modETOL = 20.0, modETOL_FACTOR= 1000.0, modETOL_PAN = 20.0;//adjust depending on noise, environment and load.
 long newSampleTOP, newSampleLEFT, newSampleRIGHT;
 long pulseLEFT, pulseRIGHT, pulseTOP; 
 float PT_MIN = 0.4, PT_MIN_PAN = 1.0;
@@ -83,8 +85,8 @@ float DFS_on_threshold = 2.5, DFS_off_threshold = 0.5, max_blackWire_Volt = 4.0;
 //Relays:
 #define pin_relay_PNT 13
 #define pin_relay_DFS1 12
-#define pin_greyWire_DSF 2 //controls suction ON
-#define pin_whiteWire_DSF 3 //controls RELEASE valve
+#define pin_greyWire_DSF 7//2 //controls suction ON
+#define pin_whiteWire_DSF 8//3 //controls RELEASE valve
 //Micro-switches:
 int uswitch1 = 4; // top: analogue input 4
 int uswitch2 = 5; // bottom: analogue input 5
@@ -175,7 +177,7 @@ void loop()
         }
         if (st_status == true){
           Serial.println("EE: End effector re-oriented.");
-          //send_char_srv(GScommand);
+          //send_char_srv(GScommand);//sending this command back to the GS messes up the string with distance readings!!!
         }
       break;
 
@@ -249,7 +251,7 @@ void loop()
       
       case 'c':
         Serial.println("EE: Activating suction cups.");
-        digitalWrite(pin_relay_DFS1,LOW);
+        //digitalWrite(pin_relay_DFS1,LOW);
         digitalWrite(pin_greyWire_DSF,LOW);//suction on
         digitalWrite(pin_relay_PNT, HIGH);//pnt off
         st_status0 = activate(blackWire_DFS1, blackValue_DFS1);
@@ -270,7 +272,7 @@ void loop()
       case 'i':
         Serial.println("EE: De-activating suction cups.");
         digitalWrite(pin_greyWire_DSF,HIGH);//suction off
-        digitalWrite(pin_relay_DFS1,HIGH);
+        //digitalWrite(pin_relay_DFS1,HIGH);
         digitalWrite(pin_whiteWire_DSF,LOW);//release on
         st_status0 = deactivate(blackWire_DFS1, blackValue_DFS1);//after 20s voltage drops, pressure disappears completely after 160s
         st_status1 = deactivate(blackWire_DFS2, blackValue_DFS2);
@@ -297,6 +299,9 @@ void loop()
         MIN_MAN_REOR_ANGLE = 2.5;
         //digitalWrite(pin_relay_PNT, HIGH);// if pnt is switched off it'll flop down in idle state
         digitalWrite(pin_relay_PNT, LOW);
+        digitalWrite(pin_relay_DFS1,LOW);//DFS turned on by default, activate vacuum with grey wire
+        digitalWrite(pin_greyWire_DSF,HIGH);//suction off
+        digitalWrite(pin_whiteWire_DSF,HIGH);//release off
         Serial.println("EE: Idle state.");
       break;
       
@@ -315,7 +320,7 @@ void loop()
     {
       client.print(distances_n_angles_2_GS);
     }
-    Serial.println(distances_n_angles_2_GS);
+    //Serial.println(distances_n_angles_2_GS);
 }
 //Activate suction:
 void activate_suction()
@@ -407,6 +412,23 @@ void store_distances_for_GS(){
  leftdistance = modELEFT;
  rightdistance = modERIGHT;
  topdistance = modETOP;
+
+ //string formatting to show values on interface:
+ 
+ if (modELEFT == 0)
+ {
+  leftdistance = "000";
+ }
+
+ if (modERIGHT == 0)
+ {
+  rightdistance = "000";
+ }
+ 
+ if (modETOP == 0)
+ {
+  topdistance = "000";
+ }
  
  if(modELEFT > 10000){
   leftdistance = "10000";
